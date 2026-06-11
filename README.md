@@ -2,7 +2,10 @@
 
 A virtual PM that reads a messy day, surfaces each item's **true** cost — travel, waiting, and the focus it shatters around it — and credits back the time a smarter move would return. The goal isn't to do more. It's to **subtract logistics so presence can grow**, then **defend the time it reclaims**.
 
-This repo is **Phase 0**: a self-contained prototype for putting the concept in front of stakeholders. See [`ROADMAP.md`](./ROADMAP.md) for the full phased build sequence.
+This repo holds **Phase 0** (the offline stakeholder demo) and **Phase 1** (the estimation service). See [`ROADMAP.md`](./ROADMAP.md) for the full sequence.
+
+- **Phase 0 demo** — open [`index.html`](./index.html). No setup.
+- **Phase 1 service** — see [`service/`](./service/). True-time estimates that learn from actuals, plus read-only calendar.
 
 ## The demo
 
@@ -37,8 +40,8 @@ Once pushed (see below), turn on Pages so stakeholders get a URL instead of a fi
 
 | Phase | State |
 |-------|-------|
-| 0 — Prototype | ✅ this repo |
-| 1 — Estimation engine + calendar | ⏳ next |
+| 0 — Prototype | ✅ `index.html` |
+| 1 — Estimation engine + calendar | ✅ `service/` |
 | 2–5 | 📋 see ROADMAP |
 
 MIT licensed.

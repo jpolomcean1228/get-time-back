@@ -10,3 +10,11 @@ node_modules/
 # build output (for later phases)
 dist/
 build/
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.db
+.pytest_cache/

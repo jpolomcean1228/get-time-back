@@ -1,0 +1,5 @@
+[
+  { "title": "Weekly status sync", "start": "09:00", "end": "09:30", "attendees": 6 },
+  { "title": "Dentist", "start": "14:00", "end": "15:00", "location": "Maple Dental" },
+  { "title": "Dinner with Sarah", "start": "19:30", "end": "21:00", "attendees": 2 }
+]
