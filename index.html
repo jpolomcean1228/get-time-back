@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Get Time Back — prototype</title>
+<style>
+  :root{
+    --paper:#F2F4F1; --surface:#FFFFFF; --ink:#1C2421; --ink-soft:#5A645F;
+    --line:#E0E4DF; --line-strong:#C8CFC9;
+    --presence:#1F6F5C; --presence-bg:#E4F0EB;
+    --logi:#6B7B74;
+    --credit:#1F6F5C;
+    --r-elim:#A23B2D; --r-elim-bg:#F6E7E4;
+    --r-auto:#3B4FA2; --r-auto-bg:#E6E9F6;
+    --r-deleg:#9A6310; --r-deleg-bg:#F6EDDD;
+    --r-batch:#185FA5; --r-batch-bg:#E2EDF7;
+    --r-defer:#5E4AB0; --r-defer-bg:#EAE6F6;
+    --r-overlap:#0F6E56; --r-overlap-bg:#E1F0EB;
+    --r-protect:#1F6F5C; --r-protect-bg:#E4F0EB;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
+       line-height:1.55;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:920px;margin:0 auto;padding:48px 24px 80px;}
+  header.masthead{border-bottom:2px solid var(--ink);padding-bottom:18px;margin-bottom:8px;
+    display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+  .brand h1{font-family:var(--serif);font-size:34px;font-weight:600;letter-spacing:-.5px;margin:0;}
+  .brand p{margin:4px 0 0;color:var(--ink-soft);font-size:14.5px;max-width:46ch;}
+  .ribbon{font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;
+    color:var(--ink-soft);border:1px solid var(--line-strong);border-radius:2px;padding:4px 8px;white-space:nowrap;}
+
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;margin-top:28px;}
+  .panel .ph{padding:16px 20px 0;}
+  .ph .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-soft);}
+  .ph h2{font-family:var(--serif);font-size:20px;font-weight:600;margin:6px 0 0;}
+  textarea{width:100%;border:none;outline:none;resize:vertical;background:transparent;
+    font-family:var(--sans);font-size:15.5px;line-height:1.9;color:var(--ink);
+    padding:14px 20px 4px;min-height:208px;
+    background-image:repeating-linear-gradient(transparent,transparent 33px,var(--line) 33px,var(--line) 34px);}
+  .controls{display:flex;align-items:center;gap:14px;padding:12px 20px 18px;flex-wrap:wrap;}
+  button.run{font-family:var(--sans);font-size:15px;font-weight:600;color:#fff;background:var(--ink);
+    border:none;border-radius:4px;padding:11px 20px;cursor:pointer;transition:background .15s;}
+  button.run:hover{background:var(--presence);}
+  button.ghost{background:none;border:none;color:var(--ink-soft);font-size:13.5px;cursor:pointer;text-decoration:underline;text-underline-offset:3px;}
+  .hint{color:var(--ink-soft);font-size:13px;}
+
+  /* totals */
+  .totals{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);
+    border:1px solid var(--line);border-radius:6px;overflow:hidden;margin-top:28px;}
+  .tot{background:var(--surface);padding:20px 22px;}
+  .tot .k{font-family:var(--mono);font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--ink-soft);}
+  .tot .v{font-family:var(--mono);font-size:32px;font-weight:600;margin-top:6px;letter-spacing:-1px;}
+  .tot .u{font-size:13px;color:var(--ink-soft);margin-left:2px;}
+  .tot.hero .v{color:var(--presence);}
+  .tot .sub{font-size:12.5px;color:var(--ink-soft);margin-top:2px;}
+
+  .redirect{background:var(--presence-bg);border:1px solid #BfDDD3;border-radius:6px;
+    padding:16px 20px;margin-top:20px;font-size:15px;}
+  .redirect b{color:var(--presence);}
+
+  /* ledger */
+  .ledger{margin-top:28px;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--surface);}
+  .lhead{display:grid;grid-template-columns:1fr 132px 1fr 96px;gap:14px;padding:11px 20px;
+    font-family:var(--mono);font-size:10.5px;letter-spacing:1px;text-transform:uppercase;
+    color:var(--ink-soft);border-bottom:1px solid var(--line);background:#FAFBFA;}
+  .lhead .num{text-align:right;}
+  .row{display:grid;grid-template-columns:1fr 132px 1fr 96px;gap:14px;padding:15px 20px;
+    border-bottom:1px solid var(--line);align-items:start;}
+  .row:last-child{border-bottom:none;}
+  .row .task{font-weight:600;font-size:15px;}
+  .row .when{font-family:var(--mono);font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
+  .chip{display:inline-block;font-size:11px;font-weight:600;border-radius:3px;padding:2px 7px;margin-top:7px;}
+  .break{font-family:var(--mono);font-size:12px;color:var(--ink-soft);}
+  .break b{color:var(--ink);font-weight:600;}
+  .frag{color:var(--r-elim);}
+  .lever{font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;}
+  .why{font-size:13px;color:var(--ink-soft);margin-top:3px;}
+  .credit{font-family:var(--mono);font-size:16px;font-weight:600;text-align:right;color:var(--credit);white-space:nowrap;}
+  .credit.zero{color:var(--ink-soft);font-weight:400;}
+  .credit .cu{font-size:11px;color:var(--ink-soft);font-weight:400;}
+  .protectrow{background:var(--presence-bg);}
+  .protectrow .task{color:var(--presence);}
+
+  .foot{margin-top:26px;color:var(--ink-soft);font-size:12.5px;text-align:center;line-height:1.7;}
+  .empty{padding:40px 20px;text-align:center;color:var(--ink-soft);font-size:14px;}
+  @media (max-width:680px){
+    .totals{grid-template-columns:1fr;}
+    .lhead,.row{grid-template-columns:1fr 84px;}
+    .lhead .col-break,.lhead .col-lever,.row .break,.row .leverbox{display:none;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="masthead">
+    <div class="brand">
+      <h1>Get Time Back</h1>
+      <p>Drop in a messy day. It reads each item for its <em>true</em> cost — travel, waiting, and the focus it shatters around it — then credits the time a smarter move would return to you.</p>
+    </div>
+    <div class="ribbon">Prototype · rules engine · v0</div>
+  </header>
+
+  <section class="panel">
+    <div class="ph">
+      <div class="eyebrow">Today, as written</div>
+      <h2>Your day</h2>
+    </div>
+    <textarea id="input" spellcheck="false"></textarea>
+    <div class="controls">
+      <button class="run" id="run">Read my day</button>
+      <button class="ghost" id="sample">Reset to sample</button>
+      <span class="hint">One item per line. A trailing time (e.g. 5:30) is optional.</span>
+    </div>
+  </section>
+
+  <div id="results" hidden>
+    <div class="totals">
+      <div class="tot"><div class="k">Committed as written</div><div class="v"><span id="t-committed">0</span><span class="u">min</span></div><div class="sub">logistics on today's list</div></div>
+      <div class="tot"><div class="k">Reclaimable</div><div class="v"><span id="t-reclaim">0</span><span class="u">min</span></div><div class="sub">if you take each suggested move</div></div>
+      <div class="tot hero"><div class="k">Presence on the line</div><div class="v"><span id="t-presence">0</span><span class="u">min</span></div><div class="sub">the time worth defending</div></div>
+    </div>
+
+    <div class="redirect" id="redirect"></div>
+
+    <div class="ledger">
+      <div class="lhead">
+        <div>Item</div>
+        <div class="col-break">True cost</div>
+        <div class="col-lever">Smarter move</div>
+        <div class="num">Credited</div>
+      </div>
+      <div id="rows"></div>
+    </div>
+
+    <p class="foot">
+      Estimates are heuristic — a stand-in for the learned engine in Phase 1.<br>
+      Nothing leaves your browser. This page runs entirely offline.
+    </p>
+  </div>
+</div>
+
+<script>
+const SAMPLE = [
+  "Weekly status sync 9:00",
+  "Reply to overnight emails",
+  "Grocery run + pharmacy",
+  "Pick up kids from basketball 5:30",
+  "Laundry",
+  "Expense report",
+  "Dentist 2:00",
+  "Read to the kids at bedtime",
+  "Dinner with Sarah 7:30"
+].join("\n");
+
+const LEVER = {
+  eliminate:{label:"Eliminate", c:"--r-elim", bg:"--r-elim-bg"},
+  automate :{label:"Automate",  c:"--r-auto", bg:"--r-auto-bg"},
+  delegate :{label:"Delegate",  c:"--r-deleg",bg:"--r-deleg-bg"},
+  batch    :{label:"Batch",     c:"--r-batch",bg:"--r-batch-bg"},
+  defer    :{label:"Defer",     c:"--r-defer",bg:"--r-defer-bg"},
+  overlap  :{label:"Overlap",   c:"--r-overlap",bg:"--r-overlap-bg"},
+  protect  :{label:"Protect",   c:"--r-protect",bg:"--r-protect-bg"},
+};
+
+// crude keyword classifier — the honest stand-in for a learned model
+function classify(t){
+  const s = t.toLowerCase();
+  const has = (...w)=>w.some(x=>s.includes(x));
+  if (has("read to","bedtime","dinner with","date","call mom","call dad","family time","with the kids","park with"))
+    return "presence";
+  if (has("sync","standup","stand-up","status","weekly","1:1","one-on-one","check-in","check in","catch-up"))
+    return "recurring-meeting";
+  if (has("meeting","call","review","sync","huddle"))
+    return "meeting";
+  if (has("pick up","pickup","drop off","dropoff","carpool","basketball","soccer","practice","school","daycare"))
+    return "family-logistics";
+  if (has("grocery","groceries","shop","store","pharmacy","target","costco","dry clean","errand","pick up the"))
+    return "errand";
+  if (has("laundry","dishes","clean","vacuum","trash","fold","dishwasher","mop"))
+    return "chore";
+  if (has("email","inbox","expense","report","invoice","timesheet","form","admin","pay ","bill","reconcile"))
+    return "admin";
+  if (has("dentist","doctor","appointment","dmv","haircut","vet","oil change","checkup"))
+    return "appointment";
+  if (has("write","draft","design","deep work","focus","plan ","strategy","code","build the"))
+    return "deep-work";
+  return "task";
+}
+
+// returns {active,wait,travel,frag,lever,why}
+function enrich(cat){
+  switch(cat){
+    case "presence":          return {active:45,wait:0,travel:0,frag:0,lever:"protect",
+      why:"This is the point. Don't compress it — defend it."};
+    case "recurring-meeting": return {active:30,wait:0,travel:0,frag:20,lever:"automate",
+      why:"Recurring status → 5-min async update; reclaim the half-hour and the context switch."};
+    case "meeting":           return {active:30,wait:0,travel:0,frag:15,lever:"defer",
+      why:"Cut to 15 and move to the day's edge so it stops splitting a focus block."};
+    case "family-logistics":  return {active:20,wait:25,travel:20,frag:35,lever:"delegate",
+      why:"Carpool swap hands off the whole on-call window, not just the drive."};
+    case "errand":            return {active:25,wait:0,travel:30,frag:20,lever:"batch",
+      why:"Pin to one loop with the other stops, or switch to delivery; the travel is the cost."};
+    case "chore":             return {active:12,wait:78,travel:0,frag:5,lever:"overlap",
+      why:"Mostly wait time. Delay-start to finish when you're free; overlap the wait."};
+    case "admin":             return {active:35,wait:0,travel:0,frag:10,lever:"automate",
+      why:"Recurring admin → rule, template, or auto-submit; batch what's left."};
+    case "appointment":       return {active:40,wait:15,travel:25,frag:20,lever:"batch",
+      why:"Can't shorten the visit — stack nearby errands onto the trip and reclaim the travel."};
+    case "deep-work":         return {active:90,wait:0,travel:0,frag:0,lever:"protect",
+      why:"Protect from fragmentation — fence the block, push interruptions to the edges."};
+    default:                  return {active:30,wait:0,travel:0,frag:10,lever:"defer",
+      why:"Right-size it and place it in a low-cost slot."};
+  }
+}
+
+// minutes credited back by the recommended lever
+function credit(e){
+  const {active,wait,travel,frag,lever} = e;
+  switch(lever){
+    case "eliminate": return active+wait+travel;
+    case "automate":  return Math.round(active*0.8);
+    case "delegate":  return active+travel+wait;
+    case "batch":     return travel;
+    case "overlap":   return wait;
+    case "defer":     return frag;           // focus protected, not wall-clock
+    case "protect":   return 0;
+    default:          return 0;
+  }
+}
+
+function parse(text){
+  return text.split("\n").map(l=>l.trim()).filter(Boolean).map(line=>{
+    const m = line.match(/\b(\d{1,2}:\d{2})\b/);
+    const time = m ? m[1] : "";
+    const title = line.replace(/\s*\b\d{1,2}:\d{2}\b\s*$/,"").trim();
+    const cat = classify(line);
+    const e = enrich(cat);
+    return {title, time, cat, ...e, total:e.active+e.wait+e.travel, reclaim:credit(e),
+            kind: e.lever==="protect" && cat==="presence" ? "presence" : "logistics"};
+  });
+}
+
+function cssv(name){return getComputedStyle(document.documentElement).getPropertyValue(name).trim();}
+const fmt = n => n.toLocaleString();
+
+function countUp(el, to, ms){
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduce || to===0){ el.textContent=fmt(to); return; }
+  const start=performance.now();
+  function step(now){
+    const p=Math.min(1,(now-start)/ms);
+    el.textContent=fmt(Math.round(to*(1-Math.pow(1-p,3))));
+    if(p<1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+function render(items){
+  const committed = items.filter(i=>i.kind==="logistics").reduce((a,i)=>a+i.total,0);
+  const reclaim   = items.reduce((a,i)=>a+i.reclaim,0);
+  const presence  = items.filter(i=>i.kind==="presence").reduce((a,i)=>a+i.total,0);
+
+  document.getElementById("results").hidden=false;
+  countUp(document.getElementById("t-committed"), committed, 650);
+  countUp(document.getElementById("t-reclaim"),   reclaim,   800);
+  countUp(document.getElementById("t-presence"),  presence,  900);
+
+  const hrs = (reclaim/60).toFixed(1).replace(/\.0$/,"");
+  document.getElementById("redirect").innerHTML =
+    presence>0
+    ? `Take the suggested moves and you free roughly <b>${reclaim} minutes</b> (~${hrs}h). The app's job isn't to hand that back as empty space — it's to fence it. Proposed: a protected <b>${presence}-minute</b> block this evening for the items above marked <b>Protect</b>.`
+    : `Take the suggested moves and you free roughly <b>${reclaim} minutes</b> (~${hrs}h). Add something you actually want to protect — bedtime, a walk, dinner — and the app will fence the reclaimed time around it instead of letting it refill.`;
+
+  const rows = items.map(i=>{
+    const L = LEVER[i.lever];
+    const protect = i.lever==="protect";
+    const fragNote = i.frag>0 ? ` <span class="frag">+${i.frag} focus</span>` : "";
+    const creditHtml = i.reclaim>0
+      ? `+${i.reclaim}<span class="cu"> min</span>`
+      : (protect ? `hold` : `0<span class="cu"> min</span>`);
+    return `
+      <div class="row ${protect?'protectrow':''}">
+        <div>
+          <div class="task">${escapeHtml(i.title)}</div>
+          ${i.time?`<div class="when">${i.time}</div>`:""}
+          <span class="chip" style="color:${cssv('--'+L.c.replace('--',''))};background:${cssv('--'+L.bg.replace('--',''))}">${i.cat.replace(/-/g,' ')}</span>
+        </div>
+        <div class="break col-break">
+          <b>${i.total}</b> min total<br>
+          ${i.active?`${i.active} active `:''}${i.travel?`· ${i.travel} travel `:''}${i.wait?`· ${i.wait} wait`:''}${fragNote}
+        </div>
+        <div class="leverbox col-lever">
+          <div class="lever" style="color:${cssv('--'+L.c.replace('--',''))}">${L.label}</div>
+          <div class="why">${i.why}</div>
+        </div>
+        <div class="credit ${i.reclaim>0?'':'zero'}">${creditHtml}</div>
+      </div>`;
+  }).join("");
+  document.getElementById("rows").innerHTML = rows ||
+    `<div class="empty">No items read. Add a few lines and try again.</div>`;
+
+  document.getElementById("results").scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+function escapeHtml(s){return s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+
+document.getElementById("run").addEventListener("click",()=>{
+  render(parse(document.getElementById("input").value));
+});
+document.getElementById("sample").addEventListener("click",()=>{
+  document.getElementById("input").value=SAMPLE;
+  render(parse(SAMPLE));
+});
+
+// boot
+document.getElementById("input").value=SAMPLE;
+render(parse(SAMPLE));
+</script>
+</body>
+</html>
