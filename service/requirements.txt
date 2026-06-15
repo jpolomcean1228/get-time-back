@@ -3,7 +3,7 @@ uvicorn[standard]>=0.29
 pydantic>=2.6
 # optional — only needed for the LLM estimator path:
 anthropic>=0.40
-# optional — only needed when implementing GoogleCalendarProvider:
-# google-api-python-client
-# google-auth
-# google-auth-oauthlib
+# optional — only needed for the real Google Calendar provider:
+google-api-python-client>=2.0
+google-auth>=2.0
+google-auth-oauthlib>=1.0

@@ -10,6 +10,7 @@ Then open http://127.0.0.1:8000/docs for the interactive API.
 """
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
@@ -44,7 +45,23 @@ _llm = LLMEstimator()
 _base = _llm if _llm.available else RulesEstimator()
 engine = LearnedEstimator(_base, store)
 ENGINE_NAME = "llm" if _llm.available else "rules"
-calendar = MockCalendarProvider()
+def _make_calendar():
+    """Use the real Google calendar if credentials are configured, else the mock.
+
+    Selection is by credentials-file presence only; the OAuth flow itself is
+    deferred to the first today() call, so this never blocks startup.
+    """
+    cred = os.environ.get("GTB_GOOGLE_CREDENTIALS")
+    if cred and Path(cred).exists():
+        try:
+            from .calendar import GoogleCalendarProvider
+            return GoogleCalendarProvider(cred, os.environ.get("GTB_GOOGLE_TOKEN", "token.json"))
+        except Exception:
+            pass
+    return MockCalendarProvider()
+
+
+calendar = _make_calendar()
 protected = ProtectedBlocks()
 actions = ActionStore(DefendingExecutor(MockExecutor(), protected))
 household, timemap, consent = load_mock_household()
