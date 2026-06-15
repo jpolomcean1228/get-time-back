@@ -65,9 +65,12 @@ lives in `learned.py`.
 | Method | Path | Purpose |
 |--------|------|---------|
 | GET  | `/health` | liveness + which engine is active |
-| POST | `/enrich` | enrich a day → per-task levers + totals |
+| POST | `/enrich` | enrich a day → per-task levers + totals (+ proposed actions) |
 | POST | `/actuals` | log a real completion (closes the loop) |
 | GET  | `/calendar/today` | today's events (read-only) |
+| GET  | `/actions` | list proposed / executed actions |
+| POST | `/actions/confirm` | execute a proposed action — the confirm gate |
+| POST | `/actions/undo` | reverse an executed action |
 
 `POST /enrich`
 ```json
@@ -104,18 +107,20 @@ tests/
   test_engine.py     classifier, levers, and the learning loop
 ```
 
-## What's deliberately stubbed (and where Phase 3 picks up)
+## What's deliberately stubbed (and where Phase 4 picks up)
 
-- `GoogleCalendarProvider` is a documented stub; `MockCalendarProvider` serves
-  the same interface from a fixture so everything runs today.
-- Recommendations are computed but still advisory — no write-back. Calendar
-  access is read-only by design until Phase 3.
+- `GoogleCalendarProvider` (read) and `CalendarExecutor` / `MessageExecutor`
+  (write) are documented stubs; `MockCalendarProvider` and `MockExecutor` serve
+  the same interfaces so everything runs today with no credentials.
+- Everything is single-user. The household / multi-party layer is Phase 4.
 
-## Phase 2 — two-level signatures (done)
+## Phase 3 — action layer with a confirm gate (done)
 
-Actuals now learn at two levels. A recurring item with a stable title
-(`chore:laundry`) accumulates its own samples and learns precisely; a novel
-one-off falls back to the category average (`chore`) until it's been seen
-`min_specific` times. Both levels live in `app/engine/signature.py`, and the
-estimator and `/actuals` endpoint share it so they always agree on the bucket.
-`learn_level` in the response tells the UI which bucket taught each estimate.
+Recommendations can now become reversible actions. Each lever proposes one
+concrete move (`app/actions/propose.py`): protect → block time, delegate →
+draft a hand-off, batch → errand loop, overlap → delay-start, automate → async.
+Nothing happens until the user confirms — `proposed → (confirm) → executed →
+(undo) → undone`. `MockExecutor` runs the loop safely today; the real
+`CalendarExecutor` and `MessageExecutor` slot in behind the same interface,
+each carrying its wiring checklist. Calendar write is the first non-read-only
+capability and is gated behind explicit per-action confirmation by design.

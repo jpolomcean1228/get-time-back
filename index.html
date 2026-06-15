@@ -38,8 +38,9 @@
   .ph .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-soft);}
   .ph h2{font-family:var(--serif);font-size:20px;font-weight:600;margin:6px 0 0;}
   textarea{width:100%;border:none;outline:none;resize:vertical;background:transparent;
-    font-family:var(--sans);font-size:15.5px;line-height:2;color:var(--ink);
-    padding:18px 22px 16px;min-height:300px;}
+    font-family:var(--sans);font-size:15.5px;line-height:1.9;color:var(--ink);
+    padding:14px 20px 4px;min-height:208px;
+    background-image:repeating-linear-gradient(transparent,transparent 33px,var(--line) 33px,var(--line) 34px);}
   .controls{display:flex;align-items:center;gap:14px;padding:12px 20px 18px;flex-wrap:wrap;}
   button.run{font-family:var(--sans);font-size:15px;font-weight:600;color:#fff;background:var(--ink);
     border:none;border-radius:4px;padding:11px 20px;cursor:pointer;transition:background .15s;}
@@ -86,24 +87,6 @@
 
   .foot{margin-top:26px;color:var(--ink-soft);font-size:12.5px;text-align:center;line-height:1.7;}
   .empty{padding:40px 20px;text-align:center;color:var(--ink-soft);font-size:14px;}
-
-  /* engine mode on the ribbon */
-  .ribbon.live{color:var(--presence);border-color:#BfDDD3;background:var(--presence-bg);}
-  .ribbon.offline{color:var(--ink-soft);}
-
-  /* confidence meter + actuals control (live engine only) */
-  .learn{margin-top:9px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-  .conf{font-family:var(--mono);font-size:10.5px;color:var(--ink-soft);letter-spacing:.3px;}
-  .meter{display:inline-block;width:54px;height:5px;border-radius:3px;background:var(--line);overflow:hidden;vertical-align:middle;}
-  .meter > i{display:block;height:100%;background:var(--presence);width:0;transition:width .5s ease;}
-  .logactual{display:flex;align-items:center;gap:5px;}
-  .logactual input{width:46px;border:1px solid var(--line-strong);border-radius:3px;
-    padding:2px 5px;font-family:var(--mono);font-size:11px;color:var(--ink);background:var(--surface);}
-  .logactual button{border:1px solid var(--line-strong);background:var(--surface);border-radius:3px;
-    font-size:11px;color:var(--ink-soft);padding:2px 7px;cursor:pointer;}
-  .logactual button:hover{border-color:var(--presence);color:var(--presence);}
-  .logactual .lbl{font-size:11px;color:var(--ink-soft);}
-  .logged{font-size:11px;color:var(--presence);font-weight:600;}
   @media (max-width:680px){
     .totals{grid-template-columns:1fr;}
     .lhead,.row{grid-template-columns:1fr 84px;}
@@ -118,7 +101,7 @@
       <h1>Get Time Back</h1>
       <p>Drop in a messy day. It reads each item for its <em>true</em> cost — travel, waiting, and the focus it shatters around it — then credits the time a smarter move would return to you.</p>
     </div>
-    <div class="ribbon" id="ribbon" title="Checking for the live engine…">○ checking engine…</div>
+    <div class="ribbon">Prototype · rules engine · v0</div>
   </header>
 
   <section class="panel">
@@ -276,13 +259,10 @@ function countUp(el, to, ms){
   requestAnimationFrame(step);
 }
 
-function render(items, serverTotals){
-  const committed = serverTotals ? serverTotals.committed
-                    : items.filter(i=>i.kind==="logistics").reduce((a,i)=>a+i.total,0);
-  const reclaim   = serverTotals ? serverTotals.reclaimable
-                    : items.reduce((a,i)=>a+i.reclaim,0);
-  const presence  = serverTotals ? serverTotals.presence
-                    : items.filter(i=>i.kind==="presence").reduce((a,i)=>a+i.total,0);
+function render(items){
+  const committed = items.filter(i=>i.kind==="logistics").reduce((a,i)=>a+i.total,0);
+  const reclaim   = items.reduce((a,i)=>a+i.reclaim,0);
+  const presence  = items.filter(i=>i.kind==="presence").reduce((a,i)=>a+i.total,0);
 
   document.getElementById("results").hidden=false;
   countUp(document.getElementById("t-committed"), committed, 650);
@@ -316,7 +296,6 @@ function render(items, serverTotals){
         <div class="leverbox col-lever">
           <div class="lever" style="color:${cssv('--'+L.c.replace('--',''))}">${L.label}</div>
           <div class="why">${i.why}</div>
-          ${state.live && !protect ? learnControl(i) : ""}
         </div>
         <div class="credit ${i.reclaim>0?'':'zero'}">${creditHtml}</div>
       </div>`;
@@ -329,112 +308,17 @@ function render(items, serverTotals){
 
 function escapeHtml(s){return s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
 
-// ---- live-engine wiring (Phase 1) ----------------------------------------
-// Served by uvicorn -> same origin, no CORS. Opened as a file -> try localhost,
-// and if that's blocked or the server's down, fall back to the offline engine.
-const API_BASE = location.protocol === "file:" ? "http://127.0.0.1:8000" : "";
-const state = { live:false };
-
-function setRibbon(){
-  const r = document.getElementById("ribbon");
-  if(state.live){
-    r.className="ribbon live"; r.textContent="\u25CF live engine \u2014 learning on";
-    r.title="Connected to the Phase 1 service";
-  } else {
-    r.className="ribbon offline"; r.textContent="\u25CB demo mode \u2014 static rules";
-    r.title="No backend connected (e.g. the public link) \u2014 using the built-in rules engine. Run the service locally to go live.";
-  }
-}
-
-async function checkEngine(){
-  try{ const res = await fetch(API_BASE+"/health"); state.live = res.ok; }
-  catch(_){ state.live = false; }
-  setRibbon();
-}
-
-// API task shape -> the shape render() already expects
-function normalizeApiItems(tasks){
-  return tasks.map(t=>({
-    title:t.title, time:t.when, cat:t.category,
-    active:t.active, wait:t.wait, travel:t.travel, frag:t.frag,
-    total:t.total, lever:t.lever, why:t.why, reclaim:t.reclaim,
-    kind:t.kind, confidence:t.confidence, learn_level:t.learn_level, source:t.source
-  }));
-}
-
-async function analyze(text){
-  const tasks = text.split("\n").map(l=>l.trim()).filter(Boolean);
-  if(state.live){
-    try{
-      const res = await fetch(API_BASE+"/enrich",{
-        method:"POST", headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({tasks, include_calendar:false})
-      });
-      if(res.ok){
-        const data = await res.json();
-        render(normalizeApiItems(data.tasks), data.totals);
-        return;
-      }
-    }catch(_){ state.live=false; setRibbon(); }   // server vanished mid-session
-  }
-  render(parse(text));                            // offline fallback
-}
-
-// confidence meter + "log what it really took" — only when the engine is live
-function learnControl(i){
-  const pct = Math.round((i.confidence||0)*100);
-  const lvl = i.learn_level==="specific" ? " \u00B7 this item"
-            : i.learn_level==="category" ? " \u00B7 category avg" : "";
-  return `
-    <div class="learn">
-      <span class="conf">conf ${pct}%${lvl}</span>
-      <span class="meter"><i style="width:${pct}%"></i></span>
-      <span class="logactual" data-cat="${i.cat}" data-title="${escapeHtml(i.title)}">
-        <span class="lbl">took</span>
-        <input type="number" min="1" placeholder="min" aria-label="actual minutes for ${escapeHtml(i.title)}">
-        <button type="button">log</button>
-      </span>
-    </div>`;
-}
-
-async function postActual(title, category, minutes){
-  try{
-    const res = await fetch(API_BASE+"/actuals",{
-      method:"POST", headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({title, category, active_minutes:minutes, total_minutes:minutes})
-    });
-    return res.ok;
-  }catch(_){ return false; }
-}
-
-// rows are re-rendered each run, so delegate the log clicks from the container
-document.getElementById("rows").addEventListener("click", async (e)=>{
-  const btn = e.target.closest(".logactual button");
-  if(!btn) return;
-  const box = btn.closest(".logactual");
-  const input = box.querySelector("input");
-  const minutes = parseInt(input.value,10);
-  if(!minutes || minutes<1){ input.focus(); return; }
-  btn.disabled=true; btn.textContent="\u2026";
-  const ok = await postActual(box.dataset.title, box.dataset.cat, minutes);
-  if(ok){
-    box.outerHTML = `<span class="logged">\u2713 logged \u2014 re-running</span>`;
-    await analyze(document.getElementById("input").value);  // confidence climbs
-  } else { btn.disabled=false; btn.textContent="log"; }
+document.getElementById("run").addEventListener("click",()=>{
+  render(parse(document.getElementById("input").value));
 });
-
-document.getElementById("run").addEventListener("click",()=>analyze(document.getElementById("input").value));
 document.getElementById("sample").addEventListener("click",()=>{
   document.getElementById("input").value=SAMPLE;
-  analyze(SAMPLE);
+  render(parse(SAMPLE));
 });
 
-// boot: detect the engine, then analyze the sample day
-(async function(){
-  document.getElementById("input").value=SAMPLE;
-  await checkEngine();
-  await analyze(SAMPLE);
-})();
+// boot
+document.getElementById("input").value=SAMPLE;
+render(parse(SAMPLE));
 </script>
 </body>
 </html>

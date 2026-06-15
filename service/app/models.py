@@ -7,6 +7,19 @@ from pydantic import BaseModel, Field
 class EnrichRequest(BaseModel):
     tasks: list[str] = Field(default_factory=list, description="One line per item, as written")
     include_calendar: bool = Field(default=False, description="Fold today's calendar events into the list")
+    include_actions: bool = Field(default=False, description="Attach a proposed, reversible action to each item")
+
+
+class ProposedAction(BaseModel):
+    id: str
+    type: str
+    lever: str
+    label: str              # the button verb
+    detail: str             # human preview of what will happen
+    body: str = ""          # optional draft text
+    reversible: bool = True
+    status: str             # proposed | executed | undone
+    result: str = ""        # executor's confirmation message
 
 
 class EnrichedTask(BaseModel):
@@ -26,6 +39,7 @@ class EnrichedTask(BaseModel):
     confidence: float       # 0..1, rises as the engine learns
     learn_level: str        # specific | category | "" — which bucket taught it
     source: str             # rules | llm | (+learned)
+    action: ProposedAction | None = None   # the move you can confirm (Phase 3)
 
 
 class Totals(BaseModel):
@@ -38,6 +52,10 @@ class EnrichResponse(BaseModel):
     tasks: list[EnrichedTask]
     totals: Totals
     engine: str             # which base estimator is active
+
+
+class ActionRef(BaseModel):
+    id: str
 
 
 class ActualIn(BaseModel):

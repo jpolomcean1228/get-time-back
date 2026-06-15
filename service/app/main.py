@@ -13,16 +13,17 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
+from .actions import ActionStore, MockExecutor, propose
 from .calendar import MockCalendarProvider
 from .engine import (LLMEstimator, LearnedEstimator, RulesEstimator, Task,
                      credit, kind, signature)
 from .engine.levers import LEVERS
-from .models import (ActualIn, CalendarEvent, EnrichedTask, EnrichRequest,
-                     EnrichResponse, Totals)
+from .models import (ActionRef, ActualIn, CalendarEvent, EnrichedTask,
+                     EnrichRequest, EnrichResponse, ProposedAction, Totals)
 from .store import ActualsStore
 
 app = FastAPI(title="Get Time Back", version="0.1.0",
@@ -39,6 +40,7 @@ _base = _llm if _llm.available else RulesEstimator()
 engine = LearnedEstimator(_base, store)
 ENGINE_NAME = "llm" if _llm.available else "rules"
 calendar = MockCalendarProvider()
+actions = ActionStore(MockExecutor())
 
 _TIME_RE = re.compile(r"\b(\d{1,2}:\d{2})\b")
 
@@ -50,7 +52,13 @@ def _parse(line: str) -> Task:
     return Task(raw=line, title=title, when=when)
 
 
-def _to_out(est) -> EnrichedTask:
+def _action_model(a) -> ProposedAction:
+    return ProposedAction(id=a.id, type=a.type, lever=a.lever, label=a.label,
+                          detail=a.detail, body=a.body, reversible=a.reversible,
+                          status=a.status, result=a.result)
+
+
+def _to_out(est, action=None) -> EnrichedTask:
     rec = credit(est)
     return EnrichedTask(
         title=est.title, when=est.when, category=est.category,
@@ -58,6 +66,7 @@ def _to_out(est) -> EnrichedTask:
         total=est.total, lever=est.lever, lever_label=LEVERS.get(est.lever, est.lever),
         why=est.why, reclaim=rec, kind=kind(est),
         confidence=est.confidence, learn_level=est.learn_level, source=est.source,
+        action=_action_model(action) if action else None,
     )
 
 
@@ -83,7 +92,15 @@ def enrich(req: EnrichRequest):
     if req.include_calendar:
         lines += [ev.title for ev in calendar.today()]
 
-    out = [_to_out(engine.estimate(_parse(l))) for l in lines]
+    out = []
+    for l in lines:
+        est = engine.estimate(_parse(l))
+        act = None
+        if req.include_actions:
+            proposed = propose(est)
+            if proposed is not None:
+                act = actions.propose(proposed)   # register; idempotent
+        out.append(_to_out(est, act))
 
     committed = sum(t.total for t in out if t.kind == "logistics")
     reclaimable = sum(t.reclaim for t in out)
@@ -115,3 +132,27 @@ def record_actual(a: ActualIn):
 @app.get("/calendar/today", response_model=list[CalendarEvent])
 def calendar_today():
     return [CalendarEvent(**ev.__dict__) for ev in calendar.today()]
+
+
+# --- Phase 3: the confirm gate ---------------------------------------------
+@app.get("/actions", response_model=list[ProposedAction])
+def list_actions():
+    return [_action_model(a) for a in actions.list()]
+
+
+@app.post("/actions/confirm", response_model=ProposedAction)
+def confirm_action(ref: ActionRef):
+    """The gate: execute a proposed action only on explicit confirmation."""
+    a = actions.confirm(ref.id)
+    if a is None:
+        raise HTTPException(status_code=404, detail="No such proposed action")
+    return _action_model(a)
+
+
+@app.post("/actions/undo", response_model=ProposedAction)
+def undo_action(ref: ActionRef):
+    """Reverse an executed action."""
+    a = actions.undo(ref.id)
+    if a is None:
+        raise HTTPException(status_code=404, detail="No such action")
+    return _action_model(a)
