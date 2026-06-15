@@ -1,0 +1,5 @@
+[
+  { "id": "bedtime", "label": "Read to the kids at bedtime", "minutes": 30, "when": "20:00", "priority": 1 },
+  { "id": "walk",    "label": "An unhurried walk",            "minutes": 45, "when": "18:00", "priority": 2 },
+  { "id": "dinner",  "label": "Dinner, no phone",             "minutes": 60, "when": "19:00", "priority": 3 }
+]

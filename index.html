@@ -61,6 +61,17 @@
     padding:16px 20px;margin-top:20px;font-size:15px;}
   .redirect b{color:var(--presence);}
 
+  /* Phase 5 presence plan */
+  .presence{background:var(--presence-bg);border:1px solid #BfDDD3;border-radius:6px;
+    padding:18px 20px;margin-top:18px;}
+  .peyebrow{font-family:var(--mono);font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--presence);}
+  .pbudget{font-size:15px;margin-top:6px;}
+  .pbudget b{color:var(--presence);}
+  .pblock{display:flex;align-items:center;justify-content:space-between;gap:14px;
+    margin-top:12px;padding-top:12px;border-top:1px solid #CFE5DC;flex-wrap:wrap;}
+  .pinfo{font-size:14px;}
+  .pmin{font-family:var(--mono);font-weight:600;color:var(--presence);}
+
   /* ledger */
   .ledger{margin-top:28px;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--surface);}
   .lhead{display:grid;grid-template-columns:1fr 132px 1fr 96px;gap:14px;padding:11px 20px;
@@ -153,6 +164,8 @@
     </div>
 
     <div class="redirect" id="redirect"></div>
+
+    <div class="presence" id="presence" hidden></div>
 
     <div class="ledger">
       <div class="lhead">
@@ -287,23 +300,24 @@ function countUp(el, to, ms){
   requestAnimationFrame(step);
 }
 
-function render(items, serverTotals){
+function render(items, serverTotals, presence){
   const committed = serverTotals ? serverTotals.committed
                     : items.filter(i=>i.kind==="logistics").reduce((a,i)=>a+i.total,0);
   const reclaim   = serverTotals ? serverTotals.reclaimable
                     : items.reduce((a,i)=>a+i.reclaim,0);
-  const presence  = serverTotals ? serverTotals.presence
+  const presenceMin = serverTotals ? serverTotals.presence
                     : items.filter(i=>i.kind==="presence").reduce((a,i)=>a+i.total,0);
+  renderPresence(presence);
 
   document.getElementById("results").hidden=false;
   countUp(document.getElementById("t-committed"), committed, 650);
   countUp(document.getElementById("t-reclaim"),   reclaim,   800);
-  countUp(document.getElementById("t-presence"),  presence,  900);
+  countUp(document.getElementById("t-presence"),  presenceMin,  900);
 
   const hrs = (reclaim/60).toFixed(1).replace(/\.0$/,"");
   document.getElementById("redirect").innerHTML =
-    presence>0
-    ? `Take the suggested moves and you free roughly <b>${reclaim} minutes</b> (~${hrs}h). The app's job isn't to hand that back as empty space — it's to fence it. Proposed: a protected <b>${presence}-minute</b> block this evening for the items above marked <b>Protect</b>.`
+    presenceMin>0
+    ? `Take the suggested moves and you free roughly <b>${reclaim} minutes</b> (~${hrs}h). The app's job isn't to hand that back as empty space — it's to fence it. Proposed: a protected <b>${presenceMin}-minute</b> block this evening for the items above marked <b>Protect</b>.`
     : `Take the suggested moves and you free roughly <b>${reclaim} minutes</b> (~${hrs}h). Add something you actually want to protect — bedtime, a walk, dinner — and the app will fence the reclaimed time around it instead of letting it refill.`;
 
   const rows = items.map(i=>{
@@ -385,7 +399,7 @@ async function analyze(text){
       });
       if(res.ok){
         const data = await res.json();
-        render(normalizeApiItems(data.tasks), data.totals);
+        render(normalizeApiItems(data.tasks), data.totals, data.presence);
         return;
       }
     }catch(_){ state.live=false; setRibbon(); }   // server vanished mid-session
@@ -455,7 +469,28 @@ async function actionCall(path, id){
   }catch(_){ return null; }
 }
 
-document.getElementById("rows").addEventListener("click", async (e)=>{
+// ---- Phase 5: the presence plan ------------------------------------------
+function renderPresence(presence){
+  const el = document.getElementById("presence");
+  if(!state.live || !presence || !presence.blocks || !presence.blocks.length){
+    el.hidden = true; el.innerHTML = ""; return;
+  }
+  el.hidden = false;
+  const blocks = presence.blocks.map(b => `
+      <div class="pblock">
+        <div class="pinfo"><span class="pmin">${b.minutes} min</span> @ ${escapeHtml(b.when)} \u00B7 <b>${escapeHtml(b.value)}</b></div>
+        <div class="act" data-aid="${escapeHtml(b.action.id)}" data-label="Protect it">
+          <button class="actbtn" type="button">Protect it</button>
+        </div>
+      </div>`).join("");
+  el.innerHTML = `
+    <div class="peyebrow">Where the reclaimed time goes</div>
+    <div class="pbudget">Reclaim <b>${presence.reclaimable} min</b> \u2192 protect <b>${presence.allocated}</b> for what matters \u00B7 bank ${presence.banked}</div>
+    ${blocks}`;
+}
+
+// ---- Phase 3: the confirm gate (shared by the ledger and the presence plan)
+async function handleActionClick(e){
   const confirmBtn = e.target.closest(".act .actbtn");
   if(confirmBtn){
     const box = confirmBtn.closest(".act");
@@ -475,7 +510,9 @@ document.getElementById("rows").addEventListener("click", async (e)=>{
     box.innerHTML = `<button class="actbtn" type="button">${escapeHtml(box.dataset.label)}</button>`;
     return;
   }
-});
+}
+document.getElementById("rows").addEventListener("click", handleActionClick);
+document.getElementById("presence").addEventListener("click", handleActionClick);
 
 document.getElementById("run").addEventListener("click",()=>analyze(document.getElementById("input").value));
 document.getElementById("sample").addEventListener("click",()=>{

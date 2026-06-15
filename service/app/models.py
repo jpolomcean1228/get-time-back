@@ -63,6 +63,29 @@ class EnrichResponse(BaseModel):
     tasks: list[EnrichedTask]
     totals: Totals
     engine: str             # which base estimator is active
+    presence: Optional["PresencePlanOut"] = None   # the values loop (Phase 5)
+
+
+class PresenceBlockOut(BaseModel):
+    value: str              # what it's for
+    minutes: int
+    when: str               # human start time
+    action: ProposedAction  # confirm to protect & defend it
+
+
+class PresencePlanOut(BaseModel):
+    reclaimable: int        # minutes the day's moves free up
+    allocated: int          # minutes routed to protected presence
+    banked: int             # freed minutes left unspent (not refilled)
+    blocks: list[PresenceBlockOut]
+
+
+class ValueIn(BaseModel):
+    id: str
+    label: str
+    minutes: int
+    when: str               # 24h "HH:MM"
+    priority: int = 99
 
 
 class ActionRef(BaseModel):

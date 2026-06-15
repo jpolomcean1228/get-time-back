@@ -25,7 +25,10 @@ from .engine.levers import LEVERS
 from .household import Matcher, load_mock_household, task_minutes
 from .models import (ActionRef, ActualIn, CalendarEvent, CoordinationOut,
                      EnrichedTask, EnrichRequest, EnrichResponse,
-                     ProposedAction, Totals)
+                     PresenceBlockOut, PresencePlanOut, ProposedAction, Totals,
+                     ValueIn)
+from .presence import (DefendingExecutor, PresencePlanner, ProtectedBlocks,
+                       Value, load_mock_values)
 from .store import ActualsStore
 
 app = FastAPI(title="Get Time Back", version="0.1.0",
@@ -42,9 +45,12 @@ _base = _llm if _llm.available else RulesEstimator()
 engine = LearnedEstimator(_base, store)
 ENGINE_NAME = "llm" if _llm.available else "rules"
 calendar = MockCalendarProvider()
-actions = ActionStore(MockExecutor())
+protected = ProtectedBlocks()
+actions = ActionStore(DefendingExecutor(MockExecutor(), protected))
 household, timemap, consent = load_mock_household()
 matcher = Matcher(household, timemap, consent)
+values_store = load_mock_values()
+planner = PresencePlanner()
 
 _TIME_RE = re.compile(r"\b(\d{1,2}:\d{2})\b")
 
@@ -124,10 +130,23 @@ def enrich(req: EnrichRequest):
     reclaimable = sum(t.reclaim for t in out)
     presence = sum(t.total for t in out if t.kind == "presence")
 
+    presence_plan = None
+    if req.include_actions:
+        plan = planner.plan(reclaimable, values_store.list())
+        blocks = []
+        for b in plan.blocks:
+            actions.propose(b.action)          # register; idempotent
+            blocks.append(PresenceBlockOut(value=b.label, minutes=b.minutes,
+                                           when=b.when, action=_action_model(b.action)))
+        presence_plan = PresencePlanOut(reclaimable=plan.reclaimable,
+                                        allocated=plan.allocated, banked=plan.banked,
+                                        blocks=blocks)
+
     return EnrichResponse(
         tasks=out,
         totals=Totals(committed=committed, reclaimable=reclaimable, presence=presence),
         engine=ENGINE_NAME,
+        presence=presence_plan,
     )
 
 
@@ -165,6 +184,27 @@ def household_view():
             for m in household.all()
         ],
     }
+
+
+# --- Phase 5: the values loop ----------------------------------------------
+@app.get("/values", response_model=list[ValueIn])
+def list_values():
+    """What the user wants reclaimed time spent on, in priority order."""
+    return [ValueIn(id=v.id, label=v.label, minutes=v.minutes, when=v.when,
+                    priority=v.priority) for v in values_store.list()]
+
+
+@app.post("/values", response_model=list[ValueIn])
+def add_value(v: ValueIn):
+    values_store.add(Value(id=v.id, label=v.label, minutes=v.minutes,
+                           when=v.when, priority=v.priority))
+    return list_values()
+
+
+@app.get("/presence/protected")
+def protected_blocks():
+    """Blocks that have been confirmed and are now defended from encroachment."""
+    return {"protected": protected.list()}
 
 
 # --- Phase 3: the confirm gate ---------------------------------------------

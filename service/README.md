@@ -71,6 +71,9 @@ lives in `learned.py`.
 | GET  | `/actions` | list proposed / executed actions |
 | POST | `/actions/confirm` | execute a proposed action — the confirm gate |
 | POST | `/actions/undo` | reverse an executed action |
+| GET  | `/household` | roster + consent (the shared layer) |
+| GET / POST | `/values` | stated values reclaimed time funds |
+| GET  | `/presence/protected` | blocks currently defended from encroachment |
 
 `POST /enrich`
 ```json
@@ -107,21 +110,23 @@ tests/
   test_engine.py     classifier, levers, and the learning loop
 ```
 
-## What's deliberately stubbed (and where Phase 5 picks up)
+## What's real vs. stubbed
 
-- `GoogleCalendarProvider` (read), `CalendarExecutor` / `MessageExecutor`
-  (write), and the household's shared-calendar/consent sources are documented
-  stubs; the mock equivalents serve the same interfaces so everything runs today.
-- Reclaimed time isn't yet pointed at stated values. Phase 5 closes that loop —
-  fencing freed time around what the user said matters.
+Every phase of the roadmap is built and runs end to end on mocks. The seams to
+real services are documented stubs, each behind the same interface as its mock:
+`GoogleCalendarProvider` (read), `CalendarExecutor` / `MessageExecutor` (write),
+and the household's shared-calendar / consent sources. Swap a mock for its real
+adapter without touching anything upstream.
 
-## Phase 4 — household coordination layer (done)
+## Phase 5 — the values loop (done)
 
-Coordination moves from solo to multi-party. `app/household/` adds a roster
-(who's in the pod, who can drive), a shared time-map (free/busy per member), a
-consent model (a member is a candidate only if they share availability AND
-accept hand-offs — closed by default), and a matcher that finds the best free,
-willing, capable helper for a delegable task. This upgrades the Phase 3
-"delegate" action from a generic draft into a targeted carpool swap / hand-off
-to a named member — e.g. "Ask Maya" for a 5:30 pickup she's free to cover.
-See `GET /household` for the roster + consent view.
+The closer. `app/presence/` adds a stated-values store (what the user wants
+reclaimed time spent on), a planner that spends the day's reclaimable-minutes
+budget on those values in priority order — banking the remainder instead of
+letting work refill it — and real defense: a confirmed protected block is
+registered in `ProtectedBlocks`, which the rest of the system must respect.
+The "protect" lever is now a first-class output. `GET /presence/protected`
+lists what's currently defended; `GET/POST /values` manage the intentions.
+
+This is the difference between the product and a faster treadmill: reclaimed
+time gets a named destination and is defended, rather than quietly reabsorbed.
