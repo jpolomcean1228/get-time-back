@@ -11,9 +11,11 @@ Then open http://127.0.0.1:8000/docs for the interactive API.
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 from .calendar import MockCalendarProvider
 from .engine import (LLMEstimator, LearnedEstimator, RulesEstimator, Task,
@@ -62,6 +64,17 @@ def _to_out(est) -> EnrichedTask:
 @app.get("/health")
 def health():
     return {"ok": True, "engine": ENGINE_NAME}
+
+
+# serve the Phase 0 demo UI from the repo root, same origin as the API
+_INDEX = Path(__file__).resolve().parents[2] / "index.html"
+
+
+@app.get("/")
+def home():
+    if _INDEX.exists():
+        return FileResponse(_INDEX)
+    return {"service": "get-time-back", "docs": "/docs"}
 
 
 @app.post("/enrich", response_model=EnrichResponse)
