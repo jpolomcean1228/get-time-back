@@ -44,4 +44,3 @@ Once pushed (see below), turn on Pages so stakeholders get a URL instead of a fi
 | 1 — Estimation engine + calendar | ✅ `service/` |
 | 2–5 | 📋 see ROADMAP |
 
-MIT licensed.
