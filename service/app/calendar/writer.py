@@ -47,7 +47,7 @@ class GoogleCalendarWriter:
         if self._service is not None:
             return
         from googleapiclient.discovery import build
-        from .google import authorize
+        from ..google_auth import authorize
         creds = authorize(self._credentials_path, self._token_path, WRITE_SCOPES)
         self._service = build("calendar", "v3", credentials=creds)
 

@@ -78,4 +78,4 @@ def propose_handoff(est: Estimate, coord, me_name: str = "You") -> Action:
                   body=f"Hi {coord.helper.name} \u2014 any chance you could cover "
                        f"\u201C{title}\u201D ({coord.window})? You're free then. "
                        f"Happy to swap and take one of yours in return. \u2014 {me_name}",
-                  target=coord.helper.id)
+                  target=coord.helper.id, recipient=coord.helper.email)

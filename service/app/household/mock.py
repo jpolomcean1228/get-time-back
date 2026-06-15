@@ -18,7 +18,7 @@ _FX = Path(__file__).resolve().parents[1] / "fixtures"
 
 def load_mock_household() -> tuple[Household, TimeMap, Consent]:
     roster = json.loads((_FX / "household.json").read_text())
-    members = [Member(id=m["id"], name=m["name"], can_drive=m.get("can_drive", True))
+    members = [Member(id=m["id"], name=m["name"], can_drive=m.get("can_drive", True), email=m.get("email", ""))
                for m in roster["members"]]
     household = Household(me=roster["me"], members=members)
 

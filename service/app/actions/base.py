@@ -32,6 +32,7 @@ class Action:
     detail: str        # human preview of what will happen
     body: str = ""     # optional draft text (messages)
     target: str = ""   # member id this action is addressed to (Phase 4 hand-offs)
+    recipient: str = ""  # email to draft to, if known (message drafts)
     start_min: int = -1  # block window start (Phase 5 protected blocks); -1 = n/a
     end_min: int = -1
     external_id: str = ""  # id of the created calendar event, set on execute, used by undo

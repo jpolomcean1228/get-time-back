@@ -18,9 +18,10 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from .actions import (ActionStore, CalendarExecutor, MockExecutor, propose,
-                      propose_handoff)
+from .actions import (ActionStore, CalendarExecutor, MessageExecutor,
+                      MockExecutor, propose, propose_handoff)
 from .calendar import MockCalendarProvider, MockCalendarWriter
+from .messaging import MockMessageWriter
 from .engine import (LLMEstimator, LearnedEstimator, RulesEstimator, Task,
                      credit, kind, signature)
 from .engine.levers import LEVERS
@@ -75,11 +76,32 @@ def _make_calendar_writer():
     return MockCalendarWriter()
 
 
+def _make_message_writer():
+    """Real Gmail draft writer when enabled, else the mock."""
+    cred = os.environ.get("GTB_GOOGLE_CREDENTIALS")
+    on = os.environ.get("GTB_GMAIL_DRAFTS", "").lower() in ("1", "true", "yes")
+    if cred and on and Path(cred).exists():
+        try:
+            from .messaging import GmailMessageWriter
+            return GmailMessageWriter(cred, os.environ.get("GTB_GMAIL_TOKEN", "token_gmail.json"))
+        except Exception:
+            pass
+    return MockMessageWriter()
+
+
 calendar = _make_calendar()
 protected = ProtectedBlocks()
-# block_time actions write to the calendar; everything else stays mock.
-# DefendingExecutor registers the protected window; CalendarExecutor writes the event.
-actions = ActionStore(DefendingExecutor(CalendarExecutor(MockExecutor(), _make_calendar_writer()), protected))
+# Executor chain (outer -> inner):
+#   DefendingExecutor  registers the protected window for block_time
+#   CalendarExecutor   writes/deletes the calendar event for block_time
+#   MessageExecutor    drafts/discards the Gmail draft for draft_message
+#   MockExecutor       handles everything else (batch, delay-start, async, cancel)
+actions = ActionStore(
+    DefendingExecutor(
+        CalendarExecutor(
+            MessageExecutor(MockExecutor(), _make_message_writer()),
+            _make_calendar_writer()),
+        protected))
 household, timemap, consent = load_mock_household()
 matcher = Matcher(household, timemap, consent)
 values_store = load_mock_values()

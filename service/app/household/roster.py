@@ -14,6 +14,7 @@ class Member:
     id: str
     name: str
     can_drive: bool = True
+    email: str = ""
 
 
 class Household:

@@ -72,14 +72,28 @@ class CalendarExecutor:
 
 
 class MessageExecutor:
-    """Real message draft (draft_message) — Phase 3 stub.
+    """Real Gmail draft for delegate hand-offs.
 
-    Drafts only — never auto-sends. Create a draft in Gmail/Slack/etc. from
-    action.body, store the draft id, and let undo() discard it. The user still
-    presses send themselves; the tool only ever prepares the message.
+    On confirm, drafts the message (to the matched member if we have their
+    email) and stores the draft id; on undo, discards that draft. Everything
+    else delegates to the base. Drafts only — never sends; the user reviews and
+    sends. Pair with a MessageWriter (mock or Gmail); interface-only, so it's
+    testable with a fake writer and no network.
     """
+    def __init__(self, base, writer):
+        self._base = base
+        self._writer = writer
+
     def execute(self, action: Action) -> str:
-        raise NotImplementedError("MessageExecutor is a stub. Use MockExecutor.")
+        if action.type == DRAFT_MESSAGE:
+            action.external_id = self._writer.create_draft(
+                to=action.recipient, subject="Quick scheduling swap?", body=action.body)
+            return "Drafted in Gmail \u2014 review and send when you're ready."
+        return self._base.execute(action)
 
     def undo(self, action: Action) -> str:
-        raise NotImplementedError("MessageExecutor is a stub. Use MockExecutor.")
+        if action.type == DRAFT_MESSAGE and action.external_id:
+            self._writer.delete_draft(action.external_id)
+            action.external_id = ""
+            return "Draft discarded."
+        return self._base.undo(action)

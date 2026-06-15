@@ -1,8 +1,8 @@
 {
   "me": "justin",
   "members": [
-    { "id": "justin", "name": "Justin", "can_drive": true },
-    { "id": "maya",   "name": "Maya",   "can_drive": true },
-    { "id": "sam",    "name": "Sam",    "can_drive": false }
+    { "id": "justin", "name": "Justin", "can_drive": true, "email": "justin@example.com" },
+    { "id": "maya",   "name": "Maya",   "can_drive": true, "email": "maya@example.com" },
+    { "id": "sam",    "name": "Sam",    "can_drive": false, "email": "sam@example.com" }
   ]
 }
