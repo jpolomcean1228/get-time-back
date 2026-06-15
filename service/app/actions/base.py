@@ -31,6 +31,7 @@ class Action:
     label: str         # the button verb, e.g. "Block the time"
     detail: str        # human preview of what will happen
     body: str = ""     # optional draft text (messages)
+    target: str = ""   # member id this action is addressed to (Phase 4 hand-offs)
     reversible: bool = True
     status: str = "proposed"   # proposed | executed | undone
     result: str = ""           # executor's confirmation message

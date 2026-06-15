@@ -107,20 +107,21 @@ tests/
   test_engine.py     classifier, levers, and the learning loop
 ```
 
-## What's deliberately stubbed (and where Phase 4 picks up)
+## What's deliberately stubbed (and where Phase 5 picks up)
 
-- `GoogleCalendarProvider` (read) and `CalendarExecutor` / `MessageExecutor`
-  (write) are documented stubs; `MockCalendarProvider` and `MockExecutor` serve
-  the same interfaces so everything runs today with no credentials.
-- Everything is single-user. The household / multi-party layer is Phase 4.
+- `GoogleCalendarProvider` (read), `CalendarExecutor` / `MessageExecutor`
+  (write), and the household's shared-calendar/consent sources are documented
+  stubs; the mock equivalents serve the same interfaces so everything runs today.
+- Reclaimed time isn't yet pointed at stated values. Phase 5 closes that loop —
+  fencing freed time around what the user said matters.
 
-## Phase 3 — action layer with a confirm gate (done)
+## Phase 4 — household coordination layer (done)
 
-Recommendations can now become reversible actions. Each lever proposes one
-concrete move (`app/actions/propose.py`): protect → block time, delegate →
-draft a hand-off, batch → errand loop, overlap → delay-start, automate → async.
-Nothing happens until the user confirms — `proposed → (confirm) → executed →
-(undo) → undone`. `MockExecutor` runs the loop safely today; the real
-`CalendarExecutor` and `MessageExecutor` slot in behind the same interface,
-each carrying its wiring checklist. Calendar write is the first non-read-only
-capability and is gated behind explicit per-action confirmation by design.
+Coordination moves from solo to multi-party. `app/household/` adds a roster
+(who's in the pod, who can drive), a shared time-map (free/busy per member), a
+consent model (a member is a candidate only if they share availability AND
+accept hand-offs — closed by default), and a matcher that finds the best free,
+willing, capable helper for a delegable task. This upgrades the Phase 3
+"delegate" action from a generic draft into a targeted carpool swap / hand-off
+to a named member — e.g. "Ask Maya" for a 5:30 pickup she's free to cover.
+See `GET /household` for the roster + consent view.

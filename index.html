@@ -106,8 +106,8 @@
   .logged{font-size:11px;color:var(--presence);font-weight:600;}
 
   /* action confirm gate (live engine only) */
-  .act{margin-top:10px;}
-  .actbtn{border:1px solid var(--ink);background:var(--ink);color:#fff;border-radius:4px;
+  .coord{margin-top:7px;font-size:12px;font-weight:600;color:var(--r-batch);}
+  .act{margin-top:10px;}  .actbtn{border:1px solid var(--ink);background:var(--ink);color:#fff;border-radius:4px;
     font-size:12px;font-weight:600;padding:5px 11px;cursor:pointer;}
   .actbtn:hover{background:var(--presence);border-color:var(--presence);}
   .actbtn:disabled{opacity:.55;cursor:default;}
@@ -327,6 +327,7 @@ function render(items, serverTotals){
         <div class="leverbox col-lever">
           <div class="lever" style="color:${cssv('--'+L.c.replace('--',''))}">${L.label}</div>
           <div class="why">${i.why}</div>
+          ${state.live && i.coordination ? `<div class="coord">\u2192 ${escapeHtml(i.coordination.helper)} \u00B7 free ${escapeHtml(i.coordination.window)}${i.coordination.kind==='swap'?' \u00B7 swap' : ''}</div>` : ""}
           ${state.live ? actionControl(i) : ""}
           ${state.live && !protect ? learnControl(i) : ""}
         </div>
@@ -370,7 +371,7 @@ function normalizeApiItems(tasks){
     title:t.title, time:t.when, cat:t.category,
     active:t.active, wait:t.wait, travel:t.travel, frag:t.frag,
     total:t.total, lever:t.lever, why:t.why, reclaim:t.reclaim,
-    kind:t.kind, confidence:t.confidence, learn_level:t.learn_level, source:t.source, action:t.action
+    kind:t.kind, confidence:t.confidence, learn_level:t.learn_level, source:t.source, action:t.action, coordination:t.coordination
   }));
 }
 

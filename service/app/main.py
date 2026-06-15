@@ -17,13 +17,15 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from .actions import ActionStore, MockExecutor, propose
+from .actions import ActionStore, MockExecutor, propose, propose_handoff
 from .calendar import MockCalendarProvider
 from .engine import (LLMEstimator, LearnedEstimator, RulesEstimator, Task,
                      credit, kind, signature)
 from .engine.levers import LEVERS
-from .models import (ActionRef, ActualIn, CalendarEvent, EnrichedTask,
-                     EnrichRequest, EnrichResponse, ProposedAction, Totals)
+from .household import Matcher, load_mock_household, task_minutes
+from .models import (ActionRef, ActualIn, CalendarEvent, CoordinationOut,
+                     EnrichedTask, EnrichRequest, EnrichResponse,
+                     ProposedAction, Totals)
 from .store import ActualsStore
 
 app = FastAPI(title="Get Time Back", version="0.1.0",
@@ -41,6 +43,8 @@ engine = LearnedEstimator(_base, store)
 ENGINE_NAME = "llm" if _llm.available else "rules"
 calendar = MockCalendarProvider()
 actions = ActionStore(MockExecutor())
+household, timemap, consent = load_mock_household()
+matcher = Matcher(household, timemap, consent)
 
 _TIME_RE = re.compile(r"\b(\d{1,2}:\d{2})\b")
 
@@ -54,11 +58,11 @@ def _parse(line: str) -> Task:
 
 def _action_model(a) -> ProposedAction:
     return ProposedAction(id=a.id, type=a.type, lever=a.lever, label=a.label,
-                          detail=a.detail, body=a.body, reversible=a.reversible,
-                          status=a.status, result=a.result)
+                          detail=a.detail, body=a.body, target=a.target,
+                          reversible=a.reversible, status=a.status, result=a.result)
 
 
-def _to_out(est, action=None) -> EnrichedTask:
+def _to_out(est, action=None, coordination=None) -> EnrichedTask:
     rec = credit(est)
     return EnrichedTask(
         title=est.title, when=est.when, category=est.category,
@@ -67,6 +71,7 @@ def _to_out(est, action=None) -> EnrichedTask:
         why=est.why, reclaim=rec, kind=kind(est),
         confidence=est.confidence, learn_level=est.learn_level, source=est.source,
         action=_action_model(action) if action else None,
+        coordination=coordination,
     )
 
 
@@ -96,11 +101,24 @@ def enrich(req: EnrichRequest):
     for l in lines:
         est = engine.estimate(_parse(l))
         act = None
+        coord_out = None
         if req.include_actions:
-            proposed = propose(est)
-            if proposed is not None:
-                act = actions.propose(proposed)   # register; idempotent
-        out.append(_to_out(est, act))
+            coord = None
+            if est.lever == "delegate":
+                start = task_minutes(est.when)
+                if start is not None:
+                    needs_driving = est.category == "family-logistics"
+                    recurring = est.category == "family-logistics"
+                    coord = matcher.find(start, start + est.total, needs_driving, recurring)
+            if coord is not None:
+                act = actions.propose(propose_handoff(est, coord, household.my_name))
+                coord_out = CoordinationOut(helper=coord.helper.name, window=coord.window,
+                                            reason=coord.reason, kind=coord.kind)
+            else:
+                proposed = propose(est)
+                if proposed is not None:
+                    act = actions.propose(proposed)   # generic fallback
+        out.append(_to_out(est, act, coord_out))
 
     committed = sum(t.total for t in out if t.kind == "logistics")
     reclaimable = sum(t.reclaim for t in out)
@@ -132,6 +150,21 @@ def record_actual(a: ActualIn):
 @app.get("/calendar/today", response_model=list[CalendarEvent])
 def calendar_today():
     return [CalendarEvent(**ev.__dict__) for ev in calendar.today()]
+
+
+@app.get("/household")
+def household_view():
+    """The roster and each member's consent — the shared layer, made visible."""
+    return {
+        "me": household.me,
+        "members": [
+            {"id": m.id, "name": m.name, "can_drive": m.can_drive,
+             "shares_availability": consent.shares(m.id),
+             "accepts_handoffs": consent.accepts(m.id),
+             "candidate": consent.is_candidate(m.id)}
+            for m in household.all()
+        ],
+    }
 
 
 # --- Phase 3: the confirm gate ---------------------------------------------

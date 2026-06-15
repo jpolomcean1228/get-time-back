@@ -61,3 +61,21 @@ def propose(est: Estimate) -> Action | None:
                       detail=f"Remove \u201C{title}\u201D from today.")
 
     return None  # nothing actionable (shouldn't happen for known levers)
+
+
+def propose_handoff(est: Estimate, coord, me_name: str = "You") -> Action:
+    """A delegate action targeted at a specific, free, willing household member.
+
+    Upgrades the generic draft from `propose()` into a named carpool swap or
+    hand-off — the Phase 4 coordination payoff.
+    """
+    title = est.title
+    aid = _id("delegate", title)
+    word = "swap" if coord.kind == "swap" else "hand-off"
+    return Action(id=aid, type=DRAFT_MESSAGE, lever="delegate",
+                  label=f"Ask {coord.helper.name}",
+                  detail=f"{coord.reason} Propose a {word} for \u201C{title}\u201D.",
+                  body=f"Hi {coord.helper.name} \u2014 any chance you could cover "
+                       f"\u201C{title}\u201D ({coord.window})? You're free then. "
+                       f"Happy to swap and take one of yours in return. \u2014 {me_name}",
+                  target=coord.helper.id)

@@ -1,0 +1,4 @@
+{
+  "maya": { "shares_availability": true,  "accepts_handoffs": true },
+  "sam":  { "shares_availability": true,  "accepts_handoffs": false }
+}

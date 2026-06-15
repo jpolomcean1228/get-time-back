@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from typing import Optional
+
 from pydantic import BaseModel, Field
 
 
@@ -18,9 +19,17 @@ class ProposedAction(BaseModel):
     label: str              # the button verb
     detail: str             # human preview of what will happen
     body: str = ""          # optional draft text
+    target: str = ""        # member id this is addressed to (Phase 4)
     reversible: bool = True
     status: str             # proposed | executed | undone
     result: str = ""        # executor's confirmation message
+
+
+class CoordinationOut(BaseModel):
+    helper: str             # member name
+    window: str             # human time window
+    reason: str             # why this person
+    kind: str               # swap | handoff
 
 
 class EnrichedTask(BaseModel):
@@ -41,6 +50,7 @@ class EnrichedTask(BaseModel):
     learn_level: str        # specific | category | "" — which bucket taught it
     source: str             # rules | llm | (+learned)
     action: Optional[ProposedAction] = None   # the move you can confirm (Phase 3)
+    coordination: Optional[CoordinationOut] = None  # the matched helper (Phase 4)
 
 
 class Totals(BaseModel):
