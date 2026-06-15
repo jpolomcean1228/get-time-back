@@ -13,10 +13,13 @@ from __future__ import annotations
 import os
 import re
 from pathlib import Path
+from typing import Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+
+from .accounts import AuthStore, HouseholdRepo, User
 
 from .actions import (ActionStore, CalendarExecutor, MessageExecutor,
                       MockExecutor, propose, propose_handoff)
@@ -26,10 +29,11 @@ from .engine import (LLMEstimator, LearnedEstimator, RulesEstimator, Task,
                      credit, kind, signature)
 from .engine.levers import LEVERS
 from .household import Matcher, load_mock_household, task_minutes
-from .models import (ActionRef, ActualIn, CalendarEvent, CoordinationOut,
-                     EnrichedTask, EnrichRequest, EnrichResponse,
-                     PresenceBlockOut, PresencePlanOut, ProposedAction, Totals,
-                     ValueIn)
+from .models import (ActionRef, ActualIn, AvailabilityIn, CalendarEvent,
+                     CoordinationOut, EnrichedTask, EnrichRequest,
+                     EnrichResponse, HouseholdCreateIn, JoinIn, LoginIn,
+                     MembershipIn, PresenceBlockOut, PresencePlanOut,
+                     ProposedAction, RegisterIn, TokenOut, Totals, ValueIn)
 from .presence import (DefendingExecutor, PresencePlanner, ProtectedBlocks,
                        Value, load_mock_values)
 from .store import ActualsStore
@@ -106,6 +110,20 @@ household, timemap, consent = load_mock_household()
 matcher = Matcher(household, timemap, consent)
 values_store = load_mock_values()
 planner = PresencePlanner()
+auth = AuthStore()
+households = HouseholdRepo()
+
+
+def current_user(authorization: Optional[str] = Header(default=None)) -> Optional[User]:
+    if not authorization or not authorization.lower().startswith("bearer "):
+        return None
+    return auth.user_for_token(authorization.split(" ", 1)[1].strip())
+
+
+def require_user(user: Optional[User] = Depends(current_user)) -> User:
+    if user is None:
+        raise HTTPException(status_code=401, detail="Sign in required.")
+    return user
 
 _TIME_RE = re.compile(r"\b(\d{1,2}:\d{2})\b")
 
@@ -153,10 +171,18 @@ def home():
 
 
 @app.post("/enrich", response_model=EnrichResponse)
-def enrich(req: EnrichRequest):
+def enrich(req: EnrichRequest, user: Optional[User] = Depends(current_user)):
     lines = [l.strip() for l in req.tasks if l.strip()]
     if req.include_calendar:
         lines += [ev.title for ev in calendar.today()]
+
+    # coordinate over the signed-in user's real household; fall back to the mock
+    the_matcher, the_household = matcher, household
+    if user is not None:
+        built = households.build_for_user(user.id)
+        if built is not None:
+            h, tm, cn = built
+            the_matcher, the_household = Matcher(h, tm, cn), h
 
     out = []
     for l in lines:
@@ -170,9 +196,9 @@ def enrich(req: EnrichRequest):
                 if start is not None:
                     needs_driving = est.category == "family-logistics"
                     recurring = est.category == "family-logistics"
-                    coord = matcher.find(start, start + est.total, needs_driving, recurring)
+                    coord = the_matcher.find(start, start + est.total, needs_driving, recurring)
             if coord is not None:
-                act = actions.propose(propose_handoff(est, coord, household.my_name))
+                act = actions.propose(propose_handoff(est, coord, the_household.my_name))
                 coord_out = CoordinationOut(helper=coord.helper.name, window=coord.window,
                                             reason=coord.reason, kind=coord.kind)
             else:
@@ -226,16 +252,79 @@ def calendar_today():
     return [CalendarEvent(**ev.__dict__) for ev in calendar.today()]
 
 
+# --- accounts + shared household (multi-user) ------------------------------
+@app.post("/auth/register", response_model=TokenOut)
+def register(r: RegisterIn):
+    try:
+        token = auth.register(r.name, r.email, r.password)
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    return TokenOut(token=token, name=r.name.strip())
+
+
+@app.post("/auth/login", response_model=TokenOut)
+def login(r: LoginIn):
+    try:
+        token = auth.login(r.email, r.password)
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+    me = auth.user_for_token(token)
+    return TokenOut(token=token, name=me.name)
+
+
+@app.post("/auth/logout")
+def logout(authorization: Optional[str] = Header(default=None)):
+    if authorization and authorization.lower().startswith("bearer "):
+        auth.logout(authorization.split(" ", 1)[1].strip())
+    return {"ok": True}
+
+
+@app.get("/auth/me")
+def me(user: User = Depends(require_user)):
+    return {"id": user.id, "name": user.name, "email": user.email}
+
+
+@app.post("/household")
+def create_household(body: HouseholdCreateIn, user: User = Depends(require_user)):
+    return households.create(body.name, user.id)
+
+
+@app.post("/household/join")
+def join_household(body: JoinIn, user: User = Depends(require_user)):
+    try:
+        return households.join(body.code, user.id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.put("/household/me")
+def set_my_membership(body: MembershipIn, user: User = Depends(require_user)):
+    hid = households.household_of(user.id)
+    if not hid:
+        raise HTTPException(status_code=404, detail="Join or create a household first.")
+    households.set_membership(hid, user.id, body.can_drive,
+                              body.shares_availability, body.accepts_handoffs)
+    return households.roster(user.id)
+
+
+@app.put("/household/availability")
+def set_my_availability(body: AvailabilityIn, user: User = Depends(require_user)):
+    households.set_availability(user.id, [(w[0], w[1]) for w in body.busy if len(w) == 2])
+    return {"ok": True, "windows": len(body.busy)}
+
+
 @app.get("/household")
-def household_view():
-    """The roster and each member's consent — the shared layer, made visible."""
+def household_view(user: Optional[User] = Depends(current_user)):
+    """The signed-in user's real household; the mock roster when not signed in."""
+    if user is not None and households.household_of(user.id):
+        return households.roster(user.id)
     return {
-        "me": household.me,
+        "household": {"name": "Demo household (mock)", "code": "—"},
         "members": [
             {"id": m.id, "name": m.name, "can_drive": m.can_drive,
              "shares_availability": consent.shares(m.id),
              "accepts_handoffs": consent.accepts(m.id),
-             "candidate": consent.is_candidate(m.id)}
+             "is_me": m.id == household.me}
             for m in household.all()
         ],
     }

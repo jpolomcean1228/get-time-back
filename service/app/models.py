@@ -88,6 +88,40 @@ class ValueIn(BaseModel):
     priority: int = 99
 
 
+class RegisterIn(BaseModel):
+    name: str
+    email: str
+    password: str
+
+
+class LoginIn(BaseModel):
+    email: str
+    password: str
+
+
+class TokenOut(BaseModel):
+    token: str
+    name: str
+
+
+class HouseholdCreateIn(BaseModel):
+    name: str
+
+
+class JoinIn(BaseModel):
+    code: str
+
+
+class MembershipIn(BaseModel):
+    can_drive: bool = True
+    shares_availability: bool = False
+    accepts_handoffs: bool = False
+
+
+class AvailabilityIn(BaseModel):
+    busy: list[list[int]] = Field(default_factory=list, description="[[start_min, end_min], ...]")
+
+
 class ActionRef(BaseModel):
     id: str
 

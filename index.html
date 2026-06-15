@@ -131,6 +131,53 @@
     .lhead,.row{grid-template-columns:1fr 84px;}
     .lhead .col-break,.lhead .col-lever,.row .break,.row .leverbox{display:none;}
   }
+  /* ---- interaction polish: hover, focus, highlights, organic motion ---- */
+  :root{ --ease:cubic-bezier(.22,.61,.36,1); --t:.18s var(--ease); }
+
+  .panel,.tot,.ledger,.presence,.redirect{ border-radius:10px; }
+  .row{ transition:background-color var(--t), box-shadow var(--t); }
+  .row:hover{ background-color:#FAFBFA; }
+  .protectrow:hover{ background-color:#DBECE4; }
+
+  /* buttons lift and settle */
+  button.run,.actbtn,.logactual button,button.solid,button.ghost{
+    transition:background-color var(--t), border-color var(--t), color var(--t),
+               transform var(--t), box-shadow var(--t);
+  }
+  button.run:hover,.actbtn:hover,button.solid:hover{ transform:translateY(-1px); box-shadow:0 3px 10px rgba(31,111,92,.18); }
+  button.run:active,.actbtn:active,button.solid:active{ transform:translateY(0); box-shadow:none; }
+  .logactual button:hover{ transform:translateY(-1px); }
+  .ghost,.undobtn{ transition:color var(--t), border-color var(--t); }
+
+  /* chips + meter come alive */
+  .chip{ transition:filter var(--t); }
+  .row:hover .chip{ filter:saturate(1.15); }
+  .meter > i{ transition:width .5s var(--ease); }
+
+  /* focus rings — keyboard users get a clear, on-brand ring */
+  a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible{
+    outline:2px solid var(--presence); outline-offset:2px; border-radius:5px;
+  }
+  textarea:focus{ box-shadow:inset 0 0 0 1px var(--presence); border-radius:6px; }
+  .logactual input:focus{ border-color:var(--presence); }
+
+  /* confirmed state reads as a settled, defended highlight */
+  .actok{ display:inline-block; padding:3px 9px; border-radius:5px;
+    background:var(--presence-bg); animation:settle .35s var(--ease); }
+  @keyframes settle{ from{ opacity:0; transform:translateY(-3px);} to{ opacity:1; transform:none;} }
+
+  /* gentle entrance so results feel placed, not dumped */
+  .row,.pblock{ animation:rise .28s var(--ease) both; }
+  @keyframes rise{ from{ opacity:0; transform:translateY(6px);} to{ opacity:1; transform:none;} }
+  .pblock{ transition:background-color var(--t); border-radius:8px; }
+  .pblock:hover{ background-color:#DBECE4; }
+
+  .ribbon{ transition:background-color var(--t), color var(--t), border-color var(--t); }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation:none !important; transition:none !important; }
+    button.run:hover,.actbtn:hover,button.solid:hover{ transform:none; }
+  }
 </style>
 </head>
 <body>
