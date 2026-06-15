@@ -1,1 +1,257 @@
-wrote learning-demo.htmlcat
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Get Time Back — how it learns</title>
+<style>
+  :root{
+    --paper:#F2F4F1; --surface:#FFFFFF; --ink:#1C2421; --ink-soft:#5A645F;
+    --line:#E0E4DF; --line-strong:#C8CFC9;
+    --presence:#1F6F5C; --presence-bg:#E4F0EB;
+    --baseline:#9AA39E; --actual:#A23B2D; --actual-bg:#F6E7E4;
+    --cat:#185FA5; --spec:#1F6F5C;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
+       line-height:1.55;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:760px;margin:0 auto;padding:48px 24px 80px;}
+  header.masthead{border-bottom:2px solid var(--ink);padding-bottom:18px;
+    display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+  .brand h1{font-family:var(--serif);font-size:32px;font-weight:600;letter-spacing:-.5px;margin:0;}
+  .brand p{margin:5px 0 0;color:var(--ink-soft);font-size:14.5px;max-width:48ch;}
+  .ribbon{font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;
+    color:var(--ink-soft);border:1px solid var(--line-strong);border-radius:2px;padding:4px 8px;white-space:nowrap;}
+  .lede{margin:24px 0 6px;font-size:15.5px;color:var(--ink);}
+  .lede b{color:var(--presence);}
+
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:8px;margin-top:24px;padding:22px 24px 24px;}
+  .card .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-soft);}
+  .card h2{font-family:var(--serif);font-size:22px;font-weight:600;margin:6px 0 0;}
+
+  .readout{display:flex;align-items:baseline;gap:18px;margin:18px 0 4px;flex-wrap:wrap;}
+  .est{font-family:var(--mono);font-size:46px;font-weight:600;letter-spacing:-2px;color:var(--presence);line-height:1;}
+  .est .u{font-size:16px;color:var(--ink-soft);margin-left:4px;letter-spacing:0;}
+  .badge{font-size:12px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;border-radius:3px;padding:4px 9px;}
+  .badge.baseline{color:var(--baseline);background:#EEF0EE;}
+  .badge.category{color:var(--cat);background:#E2EDF7;}
+  .badge.specific{color:var(--spec);background:var(--presence-bg);}
+  .confline{font-family:var(--mono);font-size:12px;color:var(--ink-soft);display:flex;align-items:center;gap:9px;margin-top:2px;}
+  .meter{display:inline-block;width:120px;height:6px;border-radius:3px;background:var(--line);overflow:hidden;}
+  .meter > i{display:block;height:100%;background:var(--presence);width:0;transition:width .45s ease;}
+
+  svg.chart{width:100%;height:auto;display:block;margin-top:14px;}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:var(--ink-soft);margin-top:6px;}
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .swatch{width:14px;height:3px;border-radius:2px;display:inline-block;}
+  .swatch.dot{width:9px;height:9px;border-radius:50%;}
+
+  .controls{display:flex;align-items:center;gap:12px;margin-top:20px;flex-wrap:wrap;}
+  .field{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--ink-soft);}
+  .field input{width:64px;border:1px solid var(--line-strong);border-radius:4px;padding:6px 8px;
+    font-family:var(--mono);font-size:14px;color:var(--ink);background:var(--surface);}
+  button{font-family:var(--sans);font-size:14px;font-weight:600;border-radius:4px;cursor:pointer;border:1px solid var(--ink);}
+  button.solid{color:#fff;background:var(--ink);padding:9px 16px;border-color:var(--ink);}
+  button.solid:hover{background:var(--presence);border-color:var(--presence);}
+  button.ghost{background:none;border-color:var(--line-strong);color:var(--ink-soft);padding:9px 14px;}
+  button.ghost:hover{border-color:var(--presence);color:var(--presence);}
+
+  .story{margin-top:16px;font-size:14px;color:var(--ink-soft);line-height:1.65;
+    border-left:2px solid var(--presence);padding-left:14px;}
+  .story b{color:var(--ink);}
+
+  .backoff{margin-top:22px;border-top:1px solid var(--line);padding-top:18px;}
+  .backoff .row{display:flex;align-items:baseline;justify-content:space-between;gap:14px;flex-wrap:wrap;}
+  .backoff .nm{font-weight:600;font-size:15px;}
+  .backoff .nm small{display:block;color:var(--ink-soft);font-weight:400;font-size:12.5px;margin-top:2px;}
+  .backoff .val{font-family:var(--mono);font-size:18px;font-weight:600;color:var(--ink);white-space:nowrap;}
+  .backoff .val .b2{font-size:11px;font-weight:600;letter-spacing:.3px;text-transform:uppercase;margin-left:8px;padding:2px 7px;border-radius:3px;}
+
+  .foot{margin-top:28px;color:var(--ink-soft);font-size:12.5px;text-align:center;line-height:1.7;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="masthead">
+    <div class="brand">
+      <h1>How it learns</h1>
+      <p>Phase 2 stops guessing the same number forever. Watch one estimate correct itself toward your reality — and a brand-new task borrow what it already knows.</p>
+    </div>
+    <div class="ribbon">Phase 2 · two-level learning</div>
+  </header>
+
+  <p class="lede">The engine starts from a generic <b>rule-of-thumb</b>. Each time you log what a task <i>really</i> took, it shifts the estimate toward what it sees — first using the whole category's average, then the task's own history once it's seen it enough.</p>
+
+  <section class="card">
+    <div class="eyebrow">Recurring item · chore</div>
+    <h2>Laundry</h2>
+
+    <div class="readout">
+      <div class="est"><span id="est">90</span><span class="u">min</span></div>
+      <span class="badge baseline" id="badge">rule of thumb</span>
+    </div>
+    <div class="confline">
+      <span>confidence</span>
+      <span class="meter"><i id="meter" style="width:0%"></i></span>
+      <span id="confpct">0%</span>
+      <span id="samples">· no history yet</span>
+    </div>
+
+    <svg class="chart" id="chart" viewBox="0 0 660 280" role="img" aria-label="Estimate converging toward logged actuals"></svg>
+    <div class="legend">
+      <span><i class="swatch" style="background:var(--baseline)"></i> rule of thumb</span>
+      <span><i class="swatch" style="background:var(--presence)"></i> engine estimate</span>
+      <span><i class="swatch dot" style="background:var(--actual)"></i> what it really took</span>
+    </div>
+
+    <div class="controls">
+      <span class="field">it really took
+        <input type="number" id="took" value="110" min="1" max="240" aria-label="actual minutes"> min
+      </span>
+      <button class="solid" id="log">Log it</button>
+      <button class="ghost" id="quick">Log 3 quick</button>
+      <button class="ghost" id="reset">Reset</button>
+    </div>
+
+    <div class="story" id="story">Log a real time to see the estimate move. After one log it leans on the <b>chore category average</b>; once it's seen Laundry <b>twice</b>, it switches to Laundry's own history.</div>
+
+    <div class="backoff">
+      <div class="row">
+        <div class="nm">A brand-new chore: <i>Tidy the kitchen</i>
+          <small id="bo-note">No history of its own — it will reuse what the category has learned.</small>
+        </div>
+        <div class="val"><span id="bo-est">90</span> min<span class="b2 badge baseline" id="bo-badge">rule of thumb</span></div>
+      </div>
+    </div>
+  </section>
+
+  <p class="foot">
+    Runs entirely in your browser — no server needed — using the same shrinkage-and-backoff math as the live engine.<br>
+    Run the service locally to do this with your own logged actuals.
+  </p>
+</div>
+
+<script>
+// ---- faithful port of the backend learned estimator ----------------------
+const K = 3;            // prior weight (service: _PRIOR_WEIGHT)
+const MIN_SPECIFIC = 2; // samples before the specific bucket is trusted
+const BASELINE = 90;    // chore rules total: 12 active + 78 wait
+const Y_MIN = 60, Y_MAX = 135, MAX_STEPS = 8;
+
+let specific = [];      // Laundry's own actuals
+let category = [];      // all chore actuals (includes Laundry's)
+let history = [{ total: BASELINE, conf: 0, level: "baseline", actual: null }];
+
+const avg = a => a.reduce((s, x) => s + x, 0) / a.length;
+
+function estimateFrom(spec, cat){
+  let n, mean, level;
+  if (spec.length >= MIN_SPECIFIC){ n = spec.length; mean = avg(spec); level = "specific"; }
+  else if (cat.length > 0){ n = cat.length; mean = avg(cat); level = "category"; }
+  else return { total: BASELINE, conf: 0, level: "baseline" };
+  const wObs = n / (n + K);
+  const total = Math.round(BASELINE * (K / (n + K)) + mean * wObs);
+  return { total, conf: Math.round(wObs * 100), level };
+}
+
+const LEVEL = {
+  baseline: { cls: "baseline", label: "rule of thumb" },
+  category: { cls: "category", label: "category avg" },
+  specific: { cls: "specific", label: "this item" },
+};
+
+// ---- chart ---------------------------------------------------------------
+function xAt(i){ return 70 + (i / MAX_STEPS) * 540; }
+function yAt(v){ return 232 - ((v - Y_MIN) / (Y_MAX - Y_MIN)) * 196; }
+
+function drawChart(){
+  const parts = [];
+  // y gridlines + labels
+  [60, 80, 100, 120].forEach(v => {
+    parts.push(`<line x1="70" y1="${yAt(v)}" x2="610" y2="${yAt(v)}" stroke="var(--line)" stroke-width="1"/>`);
+    parts.push(`<text x="58" y="${yAt(v) + 4}" text-anchor="end" font-family="var(--mono)" font-size="11" fill="var(--ink-soft)">${v}</text>`);
+  });
+  // rule-of-thumb baseline
+  parts.push(`<line x1="70" y1="${yAt(BASELINE)}" x2="610" y2="${yAt(BASELINE)}" stroke="var(--baseline)" stroke-width="1.5" stroke-dasharray="5 4"/>`);
+  // logged actuals as dots
+  history.forEach((h, i) => {
+    if (h.actual != null)
+      parts.push(`<circle cx="${xAt(i)}" cy="${yAt(h.actual)}" r="4.5" fill="var(--actual)"/>`);
+  });
+  // estimate polyline + dots
+  const pts = history.map((h, i) => `${xAt(i)},${yAt(h.total)}`).join(" ");
+  parts.push(`<polyline points="${pts}" fill="none" stroke="var(--presence)" stroke-width="2.5" stroke-linejoin="round"/>`);
+  history.forEach((h, i) => {
+    parts.push(`<circle cx="${xAt(i)}" cy="${yAt(h.total)}" r="3.5" fill="var(--surface)" stroke="var(--presence)" stroke-width="2"/>`);
+  });
+  // x label
+  parts.push(`<text x="340" y="270" text-anchor="middle" font-family="var(--mono)" font-size="11" fill="var(--ink-soft)">times you've logged it &rarr;</text>`);
+  document.getElementById("chart").innerHTML = parts.join("");
+}
+
+// ---- render --------------------------------------------------------------
+function render(){
+  const cur = history[history.length - 1];
+  document.getElementById("est").textContent = cur.total;
+  const b = document.getElementById("badge");
+  b.className = "badge " + LEVEL[cur.level].cls;
+  b.textContent = LEVEL[cur.level].label;
+  document.getElementById("meter").style.width = cur.conf + "%";
+  document.getElementById("confpct").textContent = cur.conf + "%";
+  const ns = specific.length;
+  document.getElementById("samples").textContent =
+    ns === 0 ? "· no history yet" : `· seen ${ns} time${ns > 1 ? "s" : ""}`;
+
+  // story line tracks the transition
+  const s = document.getElementById("story");
+  if (cur.level === "baseline")
+    s.innerHTML = "Log a real time to see the estimate move. After one log it leans on the <b>chore category average</b>; once it's seen Laundry <b>twice</b>, it switches to Laundry's own history.";
+  else if (cur.level === "category")
+    s.innerHTML = "One sample isn't enough to trust Laundry specifically, so the estimate uses the <b>chore category average</b> — already better than the generic rule of thumb. Log once more to unlock the item's own bucket.";
+  else
+    s.innerHTML = `Now it has enough of <b>Laundry's own</b> history, so it ignores the category and tracks this exact task — landing near the <b>${Math.round(avg(specific))}-min</b> reality you keep logging. Confidence rises with every sample.`;
+
+  // backoff card: a new chore with no history of its own
+  const bo = estimateFrom([], category);
+  document.getElementById("bo-est").textContent = bo.total;
+  const bob = document.getElementById("bo-badge");
+  bob.className = "b2 badge " + LEVEL[bo.level].cls;
+  bob.textContent = LEVEL[bo.level].label;
+  document.getElementById("bo-note").textContent = category.length === 0
+    ? "No history of its own — it will reuse what the category has learned."
+    : `No history of its own, so it borrows the chore category average from the ${category.length} chore${category.length > 1 ? "s" : ""} logged so far — better than starting cold.`;
+
+  drawChart();
+}
+
+function logActual(mins){
+  if (history.length - 1 >= MAX_STEPS) return;     // keep the chart readable
+  specific.push(mins);
+  category.push(mins);
+  const e = estimateFrom(specific, category);
+  history.push({ total: e.total, conf: e.conf, level: e.level, actual: mins });
+  render();
+}
+
+document.getElementById("log").addEventListener("click", () => {
+  const v = parseInt(document.getElementById("took").value, 10);
+  if (v > 0) logActual(v);
+});
+document.getElementById("quick").addEventListener("click", () => {
+  const v = parseInt(document.getElementById("took").value, 10) || 110;
+  let i = 0;
+  const t = setInterval(() => { logActual(v + (i % 2 ? 6 : -4)); if (++i >= 3) clearInterval(t); }, 420);
+});
+document.getElementById("reset").addEventListener("click", () => {
+  specific = []; category = [];
+  history = [{ total: BASELINE, conf: 0, level: "baseline", actual: null }];
+  render();
+});
+
+render();
+</script>
+</body>
+</html>
