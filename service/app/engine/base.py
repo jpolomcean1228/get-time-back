@@ -32,6 +32,7 @@ class Estimate:
     why: str             # one-line rationale, in the user's terms
     confidence: float = 0.0  # 0..1, rises as the engine learns from actuals
     source: str = "rules"    # which estimator produced this
+    learn_level: str = ""    # "specific" | "category" | "" — which bucket taught it
 
     @property
     def total(self) -> int:

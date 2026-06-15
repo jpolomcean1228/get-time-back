@@ -24,6 +24,7 @@ class EnrichedTask(BaseModel):
     reclaim: int
     kind: str               # logistics | presence
     confidence: float       # 0..1, rises as the engine learns
+    learn_level: str        # specific | category | "" — which bucket taught it
     source: str             # rules | llm | (+learned)
 
 
@@ -40,7 +41,8 @@ class EnrichResponse(BaseModel):
 
 
 class ActualIn(BaseModel):
-    category: str = Field(description="Signature to learn against (e.g. the task category)")
+    title: str = Field(default="", description="The task as written — drives the specific bucket")
+    category: str = Field(description="Task category — the fallback bucket")
     active_minutes: int
     total_minutes: int
 

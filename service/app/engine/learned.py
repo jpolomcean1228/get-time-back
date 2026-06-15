@@ -1,52 +1,53 @@
-"""The learned estimator — the heart of Phase 1.
+"""The learned estimator — Phase 2: two-level signatures with category backoff.
 
-It wraps any base estimator (rules or LLM) and corrects the first-pass numbers
-toward what actually happened for similar tasks. The correction is a shrinkage
-blend: trust the prior estimate when you have no history, trust observed reality
-as samples accumulate.
+It corrects a first-pass estimate toward observed actuals using a shrinkage
+blend, but now prefers the *specific* bucket (this exact recurring item) once
+it has enough samples, and falls back to the *category* average until then.
 
-    corrected = estimate * k/(k+n) + observed_mean * n/(k+n)
+    corrected_total = estimate * k/(k+n) + observed_mean * n/(k+n)
 
-where n = number of recorded actuals for this category and k is a prior weight
-(how many "phantom" estimate-observations to hold before reality dominates).
-Confidence = n/(n+k), which is exactly the weight given to observed data — so
-the number the UI shows as "confidence" is the same number doing the math.
-
-This is deliberately the simplest honest version. Phase 2+ can swap the
-signature from bare category to category+context and the mean to a recency-
-weighted estimate without changing this interface.
+n and observed_mean come from the chosen level. Confidence = n/(n+k) is the
+weight given to observed data, so the number the UI shows is the number doing
+the math. learn_level tells the UI which bucket taught it.
 """
 from __future__ import annotations
 
 from .base import Estimate, Estimator, Task
+from .signature import signature
 from ..store.actuals import ActualsStore
 
-_PRIOR_WEIGHT = 3.0  # k: samples needed before observed data is trusted ~50/50
+_PRIOR_WEIGHT = 3.0   # k: samples needed before observed data is trusted ~50/50
+_MIN_SPECIFIC = 2     # specific samples needed before we stop falling back to category
 
 
 class LearnedEstimator:
-    def __init__(self, base: Estimator, store: ActualsStore, prior_weight: float = _PRIOR_WEIGHT):
+    def __init__(self, base: Estimator, store: ActualsStore,
+                 prior_weight: float = _PRIOR_WEIGHT, min_specific: int = _MIN_SPECIFIC):
         self._base = base
         self._store = store
         self._k = prior_weight
-
-    def _signature(self, est: Estimate) -> str:
-        # start simple: one bucket per category. Easy to enrich later.
-        return est.category
+        self._min_specific = min_specific
 
     def estimate(self, task: Task) -> Estimate:
         est = self._base.estimate(task)
-        n, _mean_active, mean_total = self._store.stats(self._signature(est))
-        if n <= 0:
-            est.confidence = 0.0
-            return est
 
-        w_obs = n / (n + self._k)          # weight on observed reality
-        w_prior = self._k / (n + self._k)  # weight on the first-pass estimate
+        # prefer the specific recurring-item bucket; back off to category average
+        n_s, _ms_a, ms_total = self._store.stats(signature(est.title, est.category))
+        if n_s >= self._min_specific:
+            n, mean_total, level = n_s, ms_total, "specific"
+        else:
+            n_g, _mg_a, mg_total = self._store.stats_category(est.category)
+            if n_g > 0:
+                n, mean_total, level = n_g, mg_total, "category"
+            else:
+                est.confidence = 0.0
+                est.learn_level = ""
+                return est
 
-        # Correct the *total* toward what actually happened, then scale each
-        # component by the same factor so the task's shape (active vs wait vs
-        # travel) is preserved — only its magnitude moves toward reality.
+        w_obs = n / (n + self._k)
+        w_prior = self._k / (n + self._k)
+
+        # correct the total toward reality, scale components to preserve shape
         baseline_total = est.total
         if baseline_total > 0:
             corrected_total = est.total * w_prior + mean_total * w_obs
@@ -56,5 +57,6 @@ class LearnedEstimator:
             est.travel = round(est.travel * s)
 
         est.confidence = round(w_obs, 2)
+        est.learn_level = level
         est.source = f"{est.source}+learned"
         return est

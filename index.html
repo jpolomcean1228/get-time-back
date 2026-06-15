@@ -38,9 +38,8 @@
   .ph .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-soft);}
   .ph h2{font-family:var(--serif);font-size:20px;font-weight:600;margin:6px 0 0;}
   textarea{width:100%;border:none;outline:none;resize:vertical;background:transparent;
-    font-family:var(--sans);font-size:15.5px;line-height:1.9;color:var(--ink);
-    padding:14px 20px 4px;min-height:208px;
-    background-image:repeating-linear-gradient(transparent,transparent 33px,var(--line) 33px,var(--line) 34px);}
+    font-family:var(--sans);font-size:15.5px;line-height:2;color:var(--ink);
+    padding:18px 22px 16px;min-height:300px;}
   .controls{display:flex;align-items:center;gap:14px;padding:12px 20px 18px;flex-wrap:wrap;}
   button.run{font-family:var(--sans);font-size:15px;font-weight:600;color:#fff;background:var(--ink);
     border:none;border-radius:4px;padding:11px 20px;cursor:pointer;transition:background .15s;}
@@ -342,8 +341,8 @@ function setRibbon(){
     r.className="ribbon live"; r.textContent="\u25CF live engine \u2014 learning on";
     r.title="Connected to the Phase 1 service";
   } else {
-    r.className="ribbon offline"; r.textContent="\u25CB offline \u2014 static rules";
-    r.title="Service not reachable; using the built-in rules engine";
+    r.className="ribbon offline"; r.textContent="\u25CB demo mode \u2014 static rules";
+    r.title="No backend connected (e.g. the public link) \u2014 using the built-in rules engine. Run the service locally to go live.";
   }
 }
 
@@ -359,7 +358,7 @@ function normalizeApiItems(tasks){
     title:t.title, time:t.when, cat:t.category,
     active:t.active, wait:t.wait, travel:t.travel, frag:t.frag,
     total:t.total, lever:t.lever, why:t.why, reclaim:t.reclaim,
-    kind:t.kind, confidence:t.confidence, source:t.source
+    kind:t.kind, confidence:t.confidence, learn_level:t.learn_level, source:t.source
   }));
 }
 
@@ -384,11 +383,13 @@ async function analyze(text){
 // confidence meter + "log what it really took" — only when the engine is live
 function learnControl(i){
   const pct = Math.round((i.confidence||0)*100);
+  const lvl = i.learn_level==="specific" ? " \u00B7 this item"
+            : i.learn_level==="category" ? " \u00B7 category avg" : "";
   return `
     <div class="learn">
-      <span class="conf">conf ${pct}%</span>
+      <span class="conf">conf ${pct}%${lvl}</span>
       <span class="meter"><i style="width:${pct}%"></i></span>
-      <span class="logactual" data-cat="${i.cat}">
+      <span class="logactual" data-cat="${i.cat}" data-title="${escapeHtml(i.title)}">
         <span class="lbl">took</span>
         <input type="number" min="1" placeholder="min" aria-label="actual minutes for ${escapeHtml(i.title)}">
         <button type="button">log</button>
@@ -396,11 +397,11 @@ function learnControl(i){
     </div>`;
 }
 
-async function postActual(category, minutes){
+async function postActual(title, category, minutes){
   try{
     const res = await fetch(API_BASE+"/actuals",{
       method:"POST", headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({category, active_minutes:minutes, total_minutes:minutes})
+      body:JSON.stringify({title, category, active_minutes:minutes, total_minutes:minutes})
     });
     return res.ok;
   }catch(_){ return false; }
@@ -415,7 +416,7 @@ document.getElementById("rows").addEventListener("click", async (e)=>{
   const minutes = parseInt(input.value,10);
   if(!minutes || minutes<1){ input.focus(); return; }
   btn.disabled=true; btn.textContent="\u2026";
-  const ok = await postActual(box.dataset.cat, minutes);
+  const ok = await postActual(box.dataset.title, box.dataset.cat, minutes);
   if(ok){
     box.outerHTML = `<span class="logged">\u2713 logged \u2014 re-running</span>`;
     await analyze(document.getElementById("input").value);  // confidence climbs

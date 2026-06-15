@@ -13,9 +13,12 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
-Open **http://127.0.0.1:8000/docs** for the interactive API. With no API key
-it runs on the deterministic rules engine — no setup, no network. Add an
-`ANTHROPIC_API_KEY` in `.env` to switch the first-pass estimates to Claude.
+Open **http://127.0.0.1:8000/docs** for the interactive API, or
+**http://127.0.0.1:8000/** for the live demo UI — the Phase 0 frontend is now
+served from the same origin, so it calls this engine with no CORS setup and
+shows confidence climbing as you log actuals. With no API key it runs on the
+deterministic rules engine — no setup, no network. Add an `ANTHROPIC_API_KEY`
+in `.env` to switch the first-pass estimates to Claude.
 
 ```bash
 pytest          # run the engine + learning-loop tests
@@ -101,11 +104,18 @@ tests/
   test_engine.py     classifier, levers, and the learning loop
 ```
 
-## What's deliberately stubbed (and where Phase 2 picks up)
+## What's deliberately stubbed (and where Phase 3 picks up)
 
 - `GoogleCalendarProvider` is a documented stub; `MockCalendarProvider` serves
   the same interface from a fixture so everything runs today.
-- The actuals signature is bare category. Phase 2 can enrich it to
-  category+context without changing the interface.
 - Recommendations are computed but still advisory — no write-back. Calendar
   access is read-only by design until Phase 3.
+
+## Phase 2 — two-level signatures (done)
+
+Actuals now learn at two levels. A recurring item with a stable title
+(`chore:laundry`) accumulates its own samples and learns precisely; a novel
+one-off falls back to the category average (`chore`) until it's been seen
+`min_specific` times. Both levels live in `app/engine/signature.py`, and the
+estimator and `/actuals` endpoint share it so they always agree on the bucket.
+`learn_level` in the response tells the UI which bucket taught each estimate.

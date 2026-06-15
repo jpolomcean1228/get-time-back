@@ -19,7 +19,7 @@ from fastapi.responses import FileResponse
 
 from .calendar import MockCalendarProvider
 from .engine import (LLMEstimator, LearnedEstimator, RulesEstimator, Task,
-                     credit, kind)
+                     credit, kind, signature)
 from .engine.levers import LEVERS
 from .models import (ActualIn, CalendarEvent, EnrichedTask, EnrichRequest,
                      EnrichResponse, Totals)
@@ -57,7 +57,7 @@ def _to_out(est) -> EnrichedTask:
         active=est.active, wait=est.wait, travel=est.travel, frag=est.frag,
         total=est.total, lever=est.lever, lever_label=LEVERS.get(est.lever, est.lever),
         why=est.why, reclaim=rec, kind=kind(est),
-        confidence=est.confidence, source=est.source,
+        confidence=est.confidence, learn_level=est.learn_level, source=est.source,
     )
 
 
@@ -98,12 +98,18 @@ def enrich(req: EnrichRequest):
 
 @app.post("/actuals")
 def record_actual(a: ActualIn):
-    """Close the loop: log what a task really took so estimates improve."""
-    store.record(a.category, a.active_minutes, a.total_minutes)
-    n, mean_active, mean_total = store.stats(a.category)
-    return {"recorded": True, "signature": a.category,
-            "samples": n, "mean_active": round(mean_active, 1),
-            "mean_total": round(mean_total, 1)}
+    """Close the loop: log what a task really took so estimates improve.
+
+    Recorded under the specific signature (category + normalized title) so a
+    recurring item learns its own timing, with the category as the fallback.
+    """
+    sig = signature(a.title, a.category) if a.title else a.category
+    store.record(sig, a.category, a.active_minutes, a.total_minutes)
+    n_specific, _, mean_specific = store.stats(sig)
+    n_category, _, mean_category = store.stats_category(a.category)
+    return {"recorded": True, "signature": sig,
+            "specific": {"samples": n_specific, "mean_total": round(mean_specific, 1)},
+            "category": {"samples": n_category, "mean_total": round(mean_category, 1)}}
 
 
 @app.get("/calendar/today", response_model=list[CalendarEvent])

@@ -10,9 +10,10 @@ from .rules import RulesEstimator
 from .llm import LLMEstimator
 from .learned import LearnedEstimator
 from .levers import LEVERS, credit, kind
+from .signature import signature
 
 __all__ = [
     "Estimate", "Estimator", "Task",
     "RulesEstimator", "LLMEstimator", "LearnedEstimator",
-    "LEVERS", "credit", "kind",
+    "LEVERS", "credit", "kind", "signature",
 ]
