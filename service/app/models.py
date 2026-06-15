@@ -1,6 +1,7 @@
 """API schemas."""
 from __future__ import annotations
 
+from typing import Optional
 from pydantic import BaseModel, Field
 
 
@@ -39,7 +40,7 @@ class EnrichedTask(BaseModel):
     confidence: float       # 0..1, rises as the engine learns
     learn_level: str        # specific | category | "" — which bucket taught it
     source: str             # rules | llm | (+learned)
-    action: ProposedAction | None = None   # the move you can confirm (Phase 3)
+    action: Optional[ProposedAction] = None   # the move you can confirm (Phase 3)
 
 
 class Totals(BaseModel):
