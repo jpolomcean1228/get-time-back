@@ -70,3 +70,23 @@ blocks back to your calendar (Phase 5's "Protect it") currently runs through the
 `MockExecutor`; turning that into real calendar writes means upgrading to the
 `calendar.events` scope and implementing `CalendarExecutor` — deliberately left
 as a separate step so read access never silently becomes write access.
+
+## 6. (Optional) Calendar WRITE — protected blocks become real events
+
+By default, confirming a "Protect it" block runs through a mock writer. To make
+it create a real calendar event (and remove it on undo), enable write:
+
+1. The write path uses the broader `calendar.events` scope. The same OAuth
+   client works; you'll just authorize a second time for the wider scope, into
+   a separate token file. This keeps read-only deployments read-only.
+2. In `.env`:
+   ```
+   GTB_CALENDAR_WRITE=1
+   GTB_GOOGLE_WRITE_TOKEN=token_write.json
+   ```
+3. Restart, then confirm a protected block in the demo. The first write opens a
+   browser to authorize calendar.events; after that, "Protect it" inserts an
+   event on your primary calendar, and **undo** deletes exactly that event.
+
+Write only ever happens through the confirm gate — never automatically — and
+every write is reversible by the undo it pairs with.

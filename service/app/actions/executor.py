@@ -7,6 +7,8 @@ two methods and slot in unchanged; they're stubbed here with wiring notes.
 """
 from __future__ import annotations
 
+import datetime as dt
+
 from .base import (ASYNC_UPDATE, BATCH_ERRANDS, BLOCK_TIME, CANCEL,
                    DELAY_START, DRAFT_MESSAGE, Action)
 
@@ -30,23 +32,43 @@ class MockExecutor:
 
 
 class CalendarExecutor:
-    """Real calendar write-back (block_time) — Phase 3 stub.
+    """Real calendar write-back for block_time actions.
 
-    Phase 1 deliberately kept calendar access read-only. This executor is where
-    write arrives, gated behind explicit per-action confirmation.
+    On confirm, creates a calendar event for the block and stores its id on the
+    action; on undo, deletes exactly that event. Everything that isn't a
+    block_time action delegates to the base executor (mock today). Pair with a
+    CalendarWriter (mock or Google); the executor itself is interface-only, so
+    it's testable with a fake writer and no network.
 
-    Wiring checklist:
-      1. Upgrade the OAuth scope from calendar.readonly to calendar.events
-         (events scope is narrower than full calendar — request the minimum).
-      2. execute(): create an event for the block; STORE THE RETURNED eventId
-         on the action so undo() can delete exactly that event.
-      3. undo(): delete the stored eventId. Reversibility is non-negotiable here.
+    Calendar *write* is the first capability beyond read-only, and it only ever
+    runs through the confirm gate — never automatically.
     """
+    def __init__(self, base, writer):
+        self._base = base
+        self._writer = writer
+
+    def _window(self, action):
+        # turn minutes-since-midnight into today's datetimes, local tz
+        today = dt.datetime.now().astimezone().replace(
+            hour=0, minute=0, second=0, microsecond=0)
+        start = today + dt.timedelta(minutes=action.start_min)
+        end = today + dt.timedelta(minutes=action.end_min)
+        return start, end
+
     def execute(self, action: Action) -> str:
-        raise NotImplementedError("CalendarExecutor is a stub. Use MockExecutor.")
+        if action.type == BLOCK_TIME and action.start_min >= 0:
+            start, end = self._window(action)
+            summary = action.label.replace("Protect ", "").strip("\u201C\u201D\" ")
+            action.external_id = self._writer.create_event(summary or action.label, start, end)
+            return "Added to your calendar."
+        return self._base.execute(action)
 
     def undo(self, action: Action) -> str:
-        raise NotImplementedError("CalendarExecutor is a stub. Use MockExecutor.")
+        if action.type == BLOCK_TIME and action.external_id:
+            self._writer.delete_event(action.external_id)
+            action.external_id = ""
+            return "Removed from your calendar."
+        return self._base.undo(action)
 
 
 class MessageExecutor:

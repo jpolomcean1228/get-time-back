@@ -114,8 +114,9 @@ tests/
 
 Every phase of the roadmap is built and runs end to end on mocks. The seams to
 real services are documented stubs, each behind the same interface as its mock:
-`GoogleCalendarProvider` (read), `CalendarExecutor` / `MessageExecutor` (write),
-and the household's shared-calendar / consent sources. Swap a mock for its real
+`GoogleCalendarProvider` (read) and `GoogleCalendarWriter` / `CalendarExecutor`
+(write) are implemented; `MessageExecutor` and the household's shared-calendar /
+consent sources remain stubs behind their interfaces. Swap a mock for its real
 adapter without touching anything upstream.
 
 ## Phase 5 — the values loop (done)

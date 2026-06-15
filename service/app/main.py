@@ -18,8 +18,9 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from .actions import ActionStore, MockExecutor, propose, propose_handoff
-from .calendar import MockCalendarProvider
+from .actions import (ActionStore, CalendarExecutor, MockExecutor, propose,
+                      propose_handoff)
+from .calendar import MockCalendarProvider, MockCalendarWriter
 from .engine import (LLMEstimator, LearnedEstimator, RulesEstimator, Task,
                      credit, kind, signature)
 from .engine.levers import LEVERS
@@ -61,9 +62,24 @@ def _make_calendar():
     return MockCalendarProvider()
 
 
+def _make_calendar_writer():
+    """Real calendar writer when write is explicitly enabled, else the mock."""
+    cred = os.environ.get("GTB_GOOGLE_CREDENTIALS")
+    write_on = os.environ.get("GTB_CALENDAR_WRITE", "").lower() in ("1", "true", "yes")
+    if cred and write_on and Path(cred).exists():
+        try:
+            from .calendar import GoogleCalendarWriter
+            return GoogleCalendarWriter(cred, os.environ.get("GTB_GOOGLE_WRITE_TOKEN", "token_write.json"))
+        except Exception:
+            pass
+    return MockCalendarWriter()
+
+
 calendar = _make_calendar()
 protected = ProtectedBlocks()
-actions = ActionStore(DefendingExecutor(MockExecutor(), protected))
+# block_time actions write to the calendar; everything else stays mock.
+# DefendingExecutor registers the protected window; CalendarExecutor writes the event.
+actions = ActionStore(DefendingExecutor(CalendarExecutor(MockExecutor(), _make_calendar_writer()), protected))
 household, timemap, consent = load_mock_household()
 matcher = Matcher(household, timemap, consent)
 values_store = load_mock_values()

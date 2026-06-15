@@ -21,6 +21,29 @@ from .base import CalEvent
 SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
 
 
+def authorize(credentials_path: str, token_path: str, scopes: list[str]):
+    """Run/refresh OAuth and return Google credentials. Caches to token_path.
+
+    Shared by the read-only provider and the write-capable writer; each passes
+    its own scope and token file, so read access never implicitly gains write.
+    """
+    from google.auth.transport.requests import Request
+    from google.oauth2.credentials import Credentials
+    from google_auth_oauthlib.flow import InstalledAppFlow
+
+    creds = None
+    if Path(token_path).exists():
+        creds = Credentials.from_authorized_user_file(token_path, scopes)
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(credentials_path, scopes)
+            creds = flow.run_local_server(port=0)  # opens a browser once
+        Path(token_path).write_text(creds.to_json())
+    return creds
+
+
 def _parse_rfc3339(s: str) -> dt.datetime:
     # Python 3.9's fromisoformat can't parse a trailing 'Z'; normalize it.
     if s.endswith("Z"):
@@ -61,23 +84,8 @@ class GoogleCalendarProvider:
     def _ensure_service(self):
         if self._service is not None:
             return
-        # lazy imports: only needed when actually talking to Google
-        from google.auth.transport.requests import Request
-        from google.oauth2.credentials import Credentials
-        from google_auth_oauthlib.flow import InstalledAppFlow
         from googleapiclient.discovery import build
-
-        creds = None
-        if Path(self._token_path).exists():
-            creds = Credentials.from_authorized_user_file(self._token_path, SCOPES)
-        if not creds or not creds.valid:
-            if creds and creds.expired and creds.refresh_token:
-                creds.refresh(Request())
-            else:
-                flow = InstalledAppFlow.from_client_secrets_file(
-                    self._credentials_path, SCOPES)
-                creds = flow.run_local_server(port=0)  # opens a browser once
-            Path(self._token_path).write_text(creds.to_json())
+        creds = authorize(self._credentials_path, self._token_path, SCOPES)
         self._service = build("calendar", "v3", credentials=creds)
 
     def today(self) -> list[CalEvent]:
