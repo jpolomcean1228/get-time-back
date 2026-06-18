@@ -25,15 +25,16 @@ from .actions import (ActionStore, CalendarExecutor, MessageExecutor,
                       MockExecutor, propose, propose_handoff)
 from .calendar import MockCalendarProvider, MockCalendarWriter
 from .messaging import MockMessageWriter
-from .engine import (LLMEstimator, LearnedEstimator, RulesEstimator, Task,
-                     credit, kind, signature)
-from .engine.levers import LEVERS
+from .engine import (LLMEstimator, LearnedEstimator, Profile, RulesEstimator,
+                     Task, credit, default_profiles, kind, lever_label,
+                     signature)
 from .household import Matcher, load_mock_household, task_minutes
 from .models import (ActionRef, ActualIn, AvailabilityIn, CalendarEvent,
                      CoordinationOut, EnrichedTask, EnrichRequest,
                      EnrichResponse, HouseholdCreateIn, JoinIn, LoginIn,
                      MembershipIn, PresenceBlockOut, PresencePlanOut,
-                     ProposedAction, RegisterIn, TokenOut, Totals, ValueIn)
+                     ProfileIn, ProposedAction, RegisterIn, TokenOut, Totals,
+                     ValueIn)
 from .presence import (DefendingExecutor, PresencePlanner, ProtectedBlocks,
                        Value, load_mock_values)
 from .store import ActualsStore
@@ -146,7 +147,7 @@ def _to_out(est, action=None, coordination=None) -> EnrichedTask:
     return EnrichedTask(
         title=est.title, when=est.when, category=est.category,
         active=est.active, wait=est.wait, travel=est.travel, frag=est.frag,
-        total=est.total, lever=est.lever, lever_label=LEVERS.get(est.lever, est.lever),
+        total=est.total, lever=est.lever, lever_label=lever_label(est.lever),
         why=est.why, reclaim=rec, kind=kind(est),
         confidence=est.confidence, learn_level=est.learn_level, source=est.source,
         action=_action_model(action) if action else None,
@@ -328,6 +329,27 @@ def household_view(user: Optional[User] = Depends(current_user)):
             for m in household.all()
         ],
     }
+
+
+# --- the task-profile table (user-extensible category knowledge) ----------
+@app.get("/profiles", response_model=list[ProfileIn])
+def list_profiles():
+    """The category table the rules engine classifies against, in match order."""
+    return [ProfileIn(category=p.category, active=p.active, wait=p.wait,
+                      travel=p.travel, frag=p.frag, lever=p.lever, why=p.why,
+                      keywords=list(p.keywords), default=p.default)
+            for p in default_profiles().list()]
+
+
+@app.post("/profiles", response_model=list[ProfileIn])
+def add_profile(p: ProfileIn):
+    """Add or replace a category profile — no code change, takes effect at once.
+
+    A new profile's keywords are matched before the default fallback; reusing an
+    existing category replaces it in place.
+    """
+    default_profiles().add(Profile.from_dict(p.model_dump()))
+    return list_profiles()
 
 
 # --- Phase 5: the values loop ----------------------------------------------

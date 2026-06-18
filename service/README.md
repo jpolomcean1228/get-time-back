@@ -46,6 +46,22 @@ The estimators are interchangeable behind one `Estimator` protocol
 (`app/engine/base.py`). That's the seam: swap rules for LLM, or wrap either in
 the learned layer, without touching the API.
 
+### Extending it without editing code
+
+The two pieces of domain knowledge the rules engine used to hardcode are now
+data:
+
+- **Categories** live in [`fixtures/profiles.json`](./app/fixtures/profiles.json).
+  A profile pairs how an item is recognised (`keywords`) with what it costs
+  (`active`/`wait`/`travel`/`frag`) and the move that shrinks it (`lever`, `why`).
+  Adding a task type is adding a JSON object — and `POST /profiles` does it at
+  runtime, so the next `/enrich` classifies against it immediately. One profile
+  is the `default` bucket when nothing matches.
+- **Levers** are a registry (`app/engine/levers.py`): each is a label plus a
+  `credit(estimate) -> minutes` formula, registered by name. `credit()` is a
+  lookup, so a new lever is one `register_lever(...)` call, and a profile that
+  names an unregistered lever simply credits 0 instead of breaking enrich.
+
 ### The learning loop
 
 `LearnedEstimator` corrects a first-pass estimate toward the mean of recorded
@@ -68,6 +84,7 @@ lives in `learned.py`.
 | POST | `/enrich` | enrich a day → per-task levers + totals (+ proposed actions) |
 | POST | `/actuals` | log a real completion (closes the loop) |
 | GET  | `/calendar/today` | today's events (read-only) |
+| GET / POST | `/profiles` | the category/cost table the engine classifies against — add a task type as data |
 | GET  | `/actions` | list proposed / executed actions |
 | POST | `/actions/confirm` | execute a proposed action — the confirm gate |
 | POST | `/actions/undo` | reverse an executed action |
@@ -94,10 +111,11 @@ app/
   models.py          request/response schemas
   engine/
     base.py          Estimate + Estimator protocol  (the seam)
-    rules.py         deterministic baseline (Phase 0 port)
+    profiles.py      the category/cost table, loaded from a fixture
+    rules.py         deterministic baseline (Phase 0 port), reads profiles
     llm.py           Claude first-pass, falls back to rules
     learned.py       shrinkage correction toward actuals
-    levers.py        lever set + credit() + logistics/presence split
+    levers.py        lever registry + credit() + logistics/presence split
   store/
     actuals.py       SQLite feedback store
   calendar/
@@ -105,6 +123,7 @@ app/
     mock.py          fixture-backed provider (runs keyless)
     google.py        read-only OAuth stub + wiring checklist
   fixtures/
+    profiles.json      the category table — edit data, not code
     sample_calendar.json
 tests/
   test_engine.py     classifier, levers, and the learning loop

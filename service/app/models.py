@@ -88,6 +88,18 @@ class ValueIn(BaseModel):
     priority: int = 99
 
 
+class ProfileIn(BaseModel):
+    category: str
+    active: int
+    wait: int
+    travel: int
+    frag: int
+    lever: str
+    why: str = ""
+    keywords: list[str] = Field(default_factory=list)
+    default: bool = False
+
+
 class RegisterIn(BaseModel):
     name: str
     email: str
