@@ -6,25 +6,30 @@
 <title>Get Time Back — prototype</title>
 <style>
   :root{
-    --paper:#F2F4F1; --surface:#FFFFFF; --ink:#1C2421; --ink-soft:#5A645F;
-    --line:#E0E4DF; --line-strong:#C8CFC9;
-    --presence:#1F6F5C; --presence-bg:#E4F0EB;
-    --logi:#6B7B74;
-    --credit:#1F6F5C;
-    --r-elim:#A23B2D; --r-elim-bg:#F6E7E4;
-    --r-auto:#3B4FA2; --r-auto-bg:#E6E9F6;
-    --r-deleg:#9A6310; --r-deleg-bg:#F6EDDD;
-    --r-batch:#185FA5; --r-batch-bg:#E2EDF7;
-    --r-defer:#5E4AB0; --r-defer-bg:#EAE6F6;
-    --r-overlap:#0F6E56; --r-overlap-bg:#E1F0EB;
-    --r-protect:#1F6F5C; --r-protect-bg:#E4F0EB;
+    --paper:#F2EADD; --surface:#FBF6EC; --ink:#2E2720; --ink-soft:#786B5B;
+    --line:#E5DBCA; --line-strong:#CFC2AC;
+    --presence:#5E7150; --presence-bg:#E8EBDB;
+    --logi:#837564;
+    --credit:#5E7150;
+    --r-elim:#A6502F; --r-elim-bg:#F1E1D4;
+    --r-auto:#566273; --r-auto-bg:#E3E6EB;
+    --r-deleg:#97701B; --r-deleg-bg:#F1E7CD;
+    --r-batch:#3E6E63; --r-batch-bg:#DEEAE4;
+    --r-defer:#7A5A6E; --r-defer-bg:#EEE3E9;
+    --r-overlap:#5E7150; --r-overlap-bg:#E8EBDB;
+    --r-protect:#4E6B4A; --r-protect-bg:#E5EAD9;
     --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
     --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
     --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   }
   *{box-sizing:border-box;}
-  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
-       line-height:1.55;-webkit-font-smoothing:antialiased;}
+  body{margin:0;color:var(--ink);font-family:var(--sans);
+       line-height:1.55;-webkit-font-smoothing:antialiased;
+       background:
+         radial-gradient(1100px 560px at 12% -8%, #F8F1E4 0%, transparent 58%),
+         radial-gradient(960px 520px at 102% 2%, #ECE1CF 0%, transparent 55%),
+         var(--paper);
+       background-attachment:fixed;}
   .wrap{max-width:920px;margin:0 auto;padding:48px 24px 80px;}
   header.masthead{border-bottom:2px solid var(--ink);padding-bottom:18px;margin-bottom:8px;
     display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;}
@@ -57,18 +62,18 @@
   .tot.hero .v{color:var(--presence);}
   .tot .sub{font-size:12.5px;color:var(--ink-soft);margin-top:2px;}
 
-  .redirect{background:var(--presence-bg);border:1px solid #BfDDD3;border-radius:6px;
+  .redirect{background:var(--presence-bg);border:1px solid #CBD3B8;border-radius:6px;
     padding:16px 20px;margin-top:20px;font-size:15px;}
   .redirect b{color:var(--presence);}
 
   /* Phase 5 presence plan */
-  .presence{background:var(--presence-bg);border:1px solid #BfDDD3;border-radius:6px;
+  .presence{background:var(--presence-bg);border:1px solid #CBD3B8;border-radius:6px;
     padding:18px 20px;margin-top:18px;}
   .peyebrow{font-family:var(--mono);font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--presence);}
   .pbudget{font-size:15px;margin-top:6px;}
   .pbudget b{color:var(--presence);}
   .pblock{display:flex;align-items:center;justify-content:space-between;gap:14px;
-    margin-top:12px;padding-top:12px;border-top:1px solid #CFE5DC;flex-wrap:wrap;}
+    margin-top:12px;padding-top:12px;border-top:1px solid #D8DCC6;flex-wrap:wrap;}
   .pinfo{font-size:14px;}
   .pmin{font-family:var(--mono);font-weight:600;color:var(--presence);}
 
@@ -76,7 +81,7 @@
   .ledger{margin-top:28px;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--surface);}
   .lhead{display:grid;grid-template-columns:1fr 132px 1fr 96px;gap:14px;padding:11px 20px;
     font-family:var(--mono);font-size:10.5px;letter-spacing:1px;text-transform:uppercase;
-    color:var(--ink-soft);border-bottom:1px solid var(--line);background:#FAFBFA;}
+    color:var(--ink-soft);border-bottom:1px solid var(--line);background:#F6EFE2;}
   .lhead .num{text-align:right;}
   .row{display:grid;grid-template-columns:1fr 132px 1fr 96px;gap:14px;padding:15px 20px;
     border-bottom:1px solid var(--line);align-items:start;}
@@ -99,7 +104,7 @@
   .empty{padding:40px 20px;text-align:center;color:var(--ink-soft);font-size:14px;}
 
   /* engine mode on the ribbon */
-  .ribbon.live{color:var(--presence);border-color:#BfDDD3;background:var(--presence-bg);}
+  .ribbon.live{color:var(--presence);border-color:#CBD3B8;background:var(--presence-bg);}
   .ribbon.offline{color:var(--ink-soft);}
 
   /* confidence meter + actuals control (live engine only) */
@@ -136,15 +141,15 @@
 
   .panel,.tot,.ledger,.presence,.redirect{ border-radius:10px; }
   .row{ transition:background-color var(--t), box-shadow var(--t); }
-  .row:hover{ background-color:#FAFBFA; }
-  .protectrow:hover{ background-color:#DBECE4; }
+  .row:hover{ background-color:#F6EFE2; }
+  .protectrow:hover{ background-color:#DEE4CF; }
 
   /* buttons lift and settle */
   button.run,.actbtn,.logactual button,button.solid,button.ghost{
     transition:background-color var(--t), border-color var(--t), color var(--t),
                transform var(--t), box-shadow var(--t);
   }
-  button.run:hover,.actbtn:hover,button.solid:hover{ transform:translateY(-1px); box-shadow:0 3px 10px rgba(31,111,92,.18); }
+  button.run:hover,.actbtn:hover,button.solid:hover{ transform:translateY(-1px); box-shadow:0 3px 10px rgba(94,113,80,.22); }
   button.run:active,.actbtn:active,button.solid:active{ transform:translateY(0); box-shadow:none; }
   .logactual button:hover{ transform:translateY(-1px); }
   .ghost,.undobtn{ transition:color var(--t), border-color var(--t); }
@@ -170,7 +175,7 @@
   .row,.pblock{ animation:rise .28s var(--ease) both; }
   @keyframes rise{ from{ opacity:0; transform:translateY(6px);} to{ opacity:1; transform:none;} }
   .pblock{ transition:background-color var(--t); border-radius:8px; }
-  .pblock:hover{ background-color:#DBECE4; }
+  .pblock:hover{ background-color:#DEE4CF; }
 
   .ribbon{ transition:background-color var(--t), color var(--t), border-color var(--t); }
 
