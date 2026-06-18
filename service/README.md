@@ -61,6 +61,15 @@ data:
   `credit(estimate) -> minutes` formula, registered by name. `credit()` is a
   lookup, so a new lever is one `register_lever(...)` call, and a profile that
   names an unregistered lever simply credits 0 instead of breaking enrich.
+- **Components** (the base estimator, calendar provider, calendar writer,
+  message writer) are built through a plugin registry (`app/plugins.py`)
+  instead of hand-constructed in `main.py`. Each implementation registers a
+  factory under a name; the assembly picks a name (from env, with the same
+  mock-vs-real auto-selection as before) and calls `create(kind, name, cfg)`.
+  A third-party adapter ships in its own module, calls `register(...)`, and is
+  activated by listing that module in `GTB_PLUGINS` and selecting it by name
+  (e.g. `GTB_CALENDAR=outlook`) — no edit to the service. `GET /plugins` lists
+  what's registered and what's active.
 
 ### The learning loop
 
@@ -81,6 +90,7 @@ lives in `learned.py`.
 | Method | Path | Purpose |
 |--------|------|---------|
 | GET  | `/health` | liveness + which engine is active |
+| GET  | `/plugins` | registered adapters per swappable seam + which are active |
 | POST | `/enrich` | enrich a day → per-task levers + totals (+ proposed actions) |
 | POST | `/actuals` | log a real completion (closes the loop) |
 | GET  | `/calendar/today` | today's events (read-only) |

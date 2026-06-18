@@ -23,11 +23,10 @@ from .accounts import AuthStore, HouseholdRepo, User
 
 from .actions import (ActionStore, CalendarExecutor, MessageExecutor,
                       MockExecutor, propose, propose_handoff)
-from .calendar import MockCalendarProvider, MockCalendarWriter
-from .messaging import MockMessageWriter
-from .engine import (LLMEstimator, LearnedEstimator, Profile, RulesEstimator,
-                     Task, credit, default_profiles, kind, lever_label,
-                     signature)
+from .engine import (LearnedEstimator, Profile, Task, credit, default_profiles,
+                     kind, lever_label, signature)
+from .plugins import (create, load_external, register_builtins,
+                      summary as plugin_summary)
 from .household import Matcher, load_mock_household, task_minutes
 from .models import (ActionRef, ActualIn, AvailabilityIn, CalendarEvent,
                      CoordinationOut, EnrichedTask, EnrichRequest,
@@ -46,55 +45,54 @@ app.add_middleware(
     CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"],
 )
 
-# --- engine assembly -------------------------------------------------------
-store = ActualsStore()
-_llm = LLMEstimator()
-_base = _llm if _llm.available else RulesEstimator()
-engine = LearnedEstimator(_base, store)
-ENGINE_NAME = "llm" if _llm.available else "rules"
-def _make_calendar():
-    """Use the real Google calendar if credentials are configured, else the mock.
+# --- component assembly via the plugin registry ----------------------------
+register_builtins()                       # the implementations that ship here
+LOADED_PLUGINS = load_external()          # import any $GTB_PLUGINS so they self-register
 
-    Selection is by credentials-file presence only; the OAuth flow itself is
-    deferred to the first today() call, so this never blocks startup.
+_cred = os.environ.get("GTB_GOOGLE_CREDENTIALS")
+_creds_ok = bool(_cred and Path(_cred).exists())
+
+
+def _flag(name: str) -> bool:
+    return os.environ.get(name, "").lower() in ("1", "true", "yes")
+
+
+def _build(kind_: str, name: str, mock_name: str, cfg: dict):
+    """Build a component by name, falling back to its mock if construction fails.
+
+    Selection precedence is set by the caller; this just makes the build itself
+    safe — a misconfigured real adapter never takes the service down at startup
+    (the OAuth flow is deferred to first use, so a bad token surfaces later).
     """
-    cred = os.environ.get("GTB_GOOGLE_CREDENTIALS")
-    if cred and Path(cred).exists():
-        try:
-            from .calendar import GoogleCalendarProvider
-            return GoogleCalendarProvider(cred, os.environ.get("GTB_GOOGLE_TOKEN", "token.json"))
-        except Exception:
-            pass
-    return MockCalendarProvider()
+    try:
+        return create(kind_, name, cfg), name
+    except Exception:
+        return create(kind_, mock_name, {}), mock_name
 
 
-def _make_calendar_writer():
-    """Real calendar writer when write is explicitly enabled, else the mock."""
-    cred = os.environ.get("GTB_GOOGLE_CREDENTIALS")
-    write_on = os.environ.get("GTB_CALENDAR_WRITE", "").lower() in ("1", "true", "yes")
-    if cred and write_on and Path(cred).exists():
-        try:
-            from .calendar import GoogleCalendarWriter
-            return GoogleCalendarWriter(cred, os.environ.get("GTB_GOOGLE_WRITE_TOKEN", "token_write.json"))
-        except Exception:
-            pass
-    return MockCalendarWriter()
+store = ActualsStore()
 
+# estimator: explicit GTB_ESTIMATOR wins, else LLM when a key is present, else rules
+_est_name = os.environ.get("GTB_ESTIMATOR") or ("llm" if os.environ.get("ANTHROPIC_API_KEY") else "rules")
+_base, _est_name = _build("estimator", _est_name, "rules", {})
+# the LLM estimator may build but be unavailable (no package) -> report the real engine
+ENGINE_NAME = "rules" if (_est_name == "llm" and not getattr(_base, "available", True)) else _est_name
+engine = LearnedEstimator(_base, store)
 
-def _make_message_writer():
-    """Real Gmail draft writer when enabled, else the mock."""
-    cred = os.environ.get("GTB_GOOGLE_CREDENTIALS")
-    on = os.environ.get("GTB_GMAIL_DRAFTS", "").lower() in ("1", "true", "yes")
-    if cred and on and Path(cred).exists():
-        try:
-            from .messaging import GmailMessageWriter
-            return GmailMessageWriter(cred, os.environ.get("GTB_GMAIL_TOKEN", "token_gmail.json"))
-        except Exception:
-            pass
-    return MockMessageWriter()
+# calendar read: real Google when credentials exist, unless overridden by name
+CAL_NAME = os.environ.get("GTB_CALENDAR") or ("google" if _creds_ok else "mock")
+calendar, CAL_NAME = _build("calendar", CAL_NAME, "mock",
+                            {"credentials": _cred, "token": os.environ.get("GTB_GOOGLE_TOKEN", "token.json")})
 
+# calendar write + message drafts: only when explicitly enabled
+CW_NAME = os.environ.get("GTB_CALENDAR_WRITER") or ("google" if _creds_ok and _flag("GTB_CALENDAR_WRITE") else "mock")
+_cal_writer, CW_NAME = _build("calendar_writer", CW_NAME, "mock",
+                              {"credentials": _cred, "token": os.environ.get("GTB_GOOGLE_WRITE_TOKEN", "token_write.json")})
 
-calendar = _make_calendar()
+MW_NAME = os.environ.get("GTB_MESSAGE_WRITER") or ("gmail" if _creds_ok and _flag("GTB_GMAIL_DRAFTS") else "mock")
+_msg_writer, MW_NAME = _build("message_writer", MW_NAME, "mock",
+                              {"credentials": _cred, "token": os.environ.get("GTB_GMAIL_TOKEN", "token_gmail.json")})
+
 protected = ProtectedBlocks()
 # Executor chain (outer -> inner):
 #   DefendingExecutor  registers the protected window for block_time
@@ -104,8 +102,8 @@ protected = ProtectedBlocks()
 actions = ActionStore(
     DefendingExecutor(
         CalendarExecutor(
-            MessageExecutor(MockExecutor(), _make_message_writer()),
-            _make_calendar_writer()),
+            MessageExecutor(MockExecutor(), _msg_writer),
+            _cal_writer),
         protected))
 household, timemap, consent = load_mock_household()
 matcher = Matcher(household, timemap, consent)
@@ -158,6 +156,21 @@ def _to_out(est, action=None, coordination=None) -> EnrichedTask:
 @app.get("/health")
 def health():
     return {"ok": True, "engine": ENGINE_NAME}
+
+
+@app.get("/plugins")
+def plugins():
+    """Registered implementations per swappable seam, and which are active.
+
+    A new adapter appears here the moment it registers — built in, or loaded
+    from a module named in GTB_PLUGINS — with no change to this service.
+    """
+    return {
+        "registered": plugin_summary(),
+        "active": {"estimator": ENGINE_NAME, "calendar": CAL_NAME,
+                   "calendar_writer": CW_NAME, "message_writer": MW_NAME},
+        "loaded_external": LOADED_PLUGINS,
+    }
 
 
 # serve the Phase 0 demo UI from the repo root, same origin as the API
