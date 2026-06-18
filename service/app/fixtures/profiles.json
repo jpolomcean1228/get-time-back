@@ -1,0 +1,62 @@
+[
+  { "category": "presence",
+    "keywords": ["read to", "bedtime", "dinner with", "date", "call mom", "call dad", "family time", "with the kids", "park with"],
+    "active": 45, "wait": 0, "travel": 0, "frag": 0,
+    "lever": "protect",
+    "why": "This is the point. Don't compress it — defend it." },
+
+  { "category": "recurring-meeting",
+    "keywords": ["sync", "standup", "stand-up", "status", "weekly", "1:1", "one-on-one", "check-in", "check in", "catch-up"],
+    "active": 30, "wait": 0, "travel": 0, "frag": 20,
+    "lever": "automate",
+    "why": "Recurring status -> 5-min async update; reclaim the half-hour and the context switch." },
+
+  { "category": "meeting",
+    "keywords": ["meeting", "call", "review", "huddle"],
+    "active": 30, "wait": 0, "travel": 0, "frag": 15,
+    "lever": "defer",
+    "why": "Cut to 15 and move to the day's edge so it stops splitting a focus block." },
+
+  { "category": "family-logistics",
+    "keywords": ["pick up", "pickup", "drop off", "dropoff", "carpool", "basketball", "soccer", "practice", "school", "daycare"],
+    "active": 20, "wait": 25, "travel": 20, "frag": 35,
+    "lever": "delegate",
+    "why": "Carpool swap hands off the whole on-call window, not just the drive." },
+
+  { "category": "errand",
+    "keywords": ["grocery", "groceries", "shop", "store", "pharmacy", "target", "costco", "dry clean", "errand"],
+    "active": 25, "wait": 0, "travel": 30, "frag": 20,
+    "lever": "batch",
+    "why": "Pin to one loop with the other stops, or switch to delivery; the travel is the cost." },
+
+  { "category": "chore",
+    "keywords": ["laundry", "dishes", "clean", "vacuum", "trash", "fold", "dishwasher", "mop"],
+    "active": 12, "wait": 78, "travel": 0, "frag": 5,
+    "lever": "overlap",
+    "why": "Mostly wait time. Delay-start to finish when you're free; overlap the wait." },
+
+  { "category": "admin",
+    "keywords": ["email", "inbox", "expense", "report", "invoice", "timesheet", "form", "admin", "bill", "reconcile"],
+    "active": 35, "wait": 0, "travel": 0, "frag": 10,
+    "lever": "automate",
+    "why": "Recurring admin -> rule, template, or auto-submit; batch what's left." },
+
+  { "category": "appointment",
+    "keywords": ["dentist", "doctor", "appointment", "dmv", "haircut", "vet", "oil change", "checkup"],
+    "active": 40, "wait": 15, "travel": 25, "frag": 20,
+    "lever": "batch",
+    "why": "Can't shorten the visit — stack nearby errands onto the trip and reclaim the travel." },
+
+  { "category": "deep-work",
+    "keywords": ["write", "draft", "design", "deep work", "focus", "plan ", "strategy", "code", "build the"],
+    "active": 90, "wait": 0, "travel": 0, "frag": 0,
+    "lever": "protect",
+    "why": "Protect from fragmentation — fence the block, push interruptions to the edges." },
+
+  { "category": "task",
+    "keywords": [],
+    "active": 30, "wait": 0, "travel": 0, "frag": 10,
+    "lever": "defer",
+    "why": "Right-size it and place it in a low-cost slot.",
+    "default": true }
+]
