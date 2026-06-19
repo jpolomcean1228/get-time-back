@@ -138,7 +138,15 @@
   .logged-verdict.loss b{color:var(--r-elim);}
   .logged-verdict.even{background:var(--r-deleg-bg);border-color:#E4D2A6;color:var(--ink);}
   .logged-verdict.even b{color:var(--r-deleg);}
-  .logged-ledger{margin:16px 0 18px;border-top:1px solid var(--line);}
+  .logged-toggle{display:inline-flex;align-items:center;gap:8px;margin:8px 20px 0;
+    background:none;border:none;cursor:pointer;font-family:var(--mono);font-size:11px;
+    letter-spacing:.6px;text-transform:uppercase;color:var(--ink-soft);padding:6px 0;}
+  .logged-toggle:hover{color:var(--presence);}
+  .logged-toggle .lt-caret{font-size:10px;transition:transform .2s var(--ease);}
+  .logged-toggle[aria-expanded="true"] .lt-caret{transform:rotate(90deg);}
+  .logged-ledger{overflow:hidden;max-height:0;opacity:0;margin:0;
+    transition:max-height .35s var(--ease),opacity .25s var(--ease),margin .3s var(--ease);}
+  .logged-ledger.open{max-height:2200px;opacity:1;margin:10px 0 18px;}
   .lhead-logged,.logged-row,.logged-foot{display:grid;
     grid-template-columns:1fr 84px 84px 78px 78px;gap:10px;padding:11px 20px;align-items:center;}
   .lhead-logged{font-family:var(--mono);font-size:10.5px;letter-spacing:1px;text-transform:uppercase;
@@ -337,7 +345,12 @@
         </div>
         <div id="logged-chart"></div>
       </div>
-      <div class="logged-ledger">
+      <button class="logged-toggle" id="logged-toggle" type="button"
+              aria-expanded="false" aria-controls="logged-ledger">
+        <span class="lt-caret" aria-hidden="true">▸</span>
+        <span class="lt-label">Show itemized breakdown</span>
+      </button>
+      <div class="logged-ledger" id="logged-ledger">
         <div class="lhead-logged">
           <div>Item</div>
           <div class="num">Estimated</div>
@@ -740,6 +753,19 @@ function renderLoggedChart(){
       ${xlabs}
     </svg>`;
 }
+
+// collapsible itemized breakdown — user decides whether to see the per-item list
+function setLoggedListOpen(open){
+  const t = document.getElementById("logged-toggle");
+  const led = document.getElementById("logged-ledger");
+  t.setAttribute("aria-expanded", open ? "true" : "false");
+  led.classList.toggle("open", open);
+  t.querySelector(".lt-label").textContent = open ? "Hide itemized breakdown" : "Show itemized breakdown";
+}
+document.getElementById("logged-toggle").addEventListener("click", () => {
+  const t = document.getElementById("logged-toggle");
+  setLoggedListOpen(t.getAttribute("aria-expanded") !== "true");
+});
 
 // ---- Phase 3: the confirm gate -------------------------------------------
 function actionControl(i){
