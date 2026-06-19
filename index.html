@@ -138,11 +138,15 @@
   .logged-verdict.loss b{color:var(--r-elim);}
   .logged-verdict.even{background:var(--r-deleg-bg);border-color:#E4D2A6;color:var(--ink);}
   .logged-verdict.even b{color:var(--r-deleg);}
-  .logged-toggle{display:inline-flex;align-items:center;gap:8px;margin:8px 20px 0;
-    background:none;border:none;cursor:pointer;font-family:var(--mono);font-size:11px;
-    letter-spacing:.6px;text-transform:uppercase;color:var(--ink-soft);padding:6px 0;}
-  .logged-toggle:hover{color:var(--presence);}
-  .logged-toggle .lt-caret{font-size:10px;transition:transform .2s var(--ease);}
+  .logged-toggle{display:inline-flex;align-items:center;gap:9px;margin:16px 20px 2px;
+    background:var(--surface);border:1px solid var(--line-strong);border-radius:9px;cursor:pointer;
+    font-family:var(--mono);font-size:11.5px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;
+    color:var(--ink);padding:10px 16px;box-shadow:0 2px 8px rgba(65,48,31,.07);
+    transition:background-color var(--t),border-color var(--t),color var(--t),transform var(--t),box-shadow var(--t);}
+  .logged-toggle:hover{border-color:var(--presence);color:var(--presence);
+    transform:translateY(-1px);box-shadow:0 4px 12px rgba(98,117,63,.16);}
+  .logged-toggle:active{transform:translateY(0);box-shadow:none;}
+  .logged-toggle .lt-caret{font-size:11px;color:var(--presence);transition:transform .2s var(--ease);}
   .logged-toggle[aria-expanded="true"] .lt-caret{transform:rotate(90deg);}
   .logged-ledger{overflow:hidden;max-height:0;opacity:0;margin:0;
     transition:max-height .35s var(--ease),opacity .25s var(--ease),margin .3s var(--ease);}
@@ -701,6 +705,7 @@ function renderLoggedTable(){
   }
 
   renderLoggedChart();
+  updateLoggedToggle();
 }
 
 function shortTitle(t){ return t.length > 13 ? t.slice(0,12) + "\u2026" : t; }
@@ -755,12 +760,18 @@ function renderLoggedChart(){
 }
 
 // collapsible itemized breakdown — user decides whether to see the per-item list
+function updateLoggedToggle(){
+  const t = document.getElementById("logged-toggle");
+  const open = t.getAttribute("aria-expanded") === "true";
+  const n = loggedEntries.length;
+  t.querySelector(".lt-label").textContent =
+    `${open ? "Hide" : "Show"} itemized breakdown · ${n} item${n === 1 ? "" : "s"}`;
+}
 function setLoggedListOpen(open){
   const t = document.getElementById("logged-toggle");
-  const led = document.getElementById("logged-ledger");
+  document.getElementById("logged-ledger").classList.toggle("open", open);
   t.setAttribute("aria-expanded", open ? "true" : "false");
-  led.classList.toggle("open", open);
-  t.querySelector(".lt-label").textContent = open ? "Hide itemized breakdown" : "Show itemized breakdown";
+  updateLoggedToggle();
 }
 document.getElementById("logged-toggle").addEventListener("click", () => {
   const t = document.getElementById("logged-toggle");
