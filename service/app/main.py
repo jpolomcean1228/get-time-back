@@ -180,7 +180,8 @@ _INDEX = Path(__file__).resolve().parents[2] / "index.html"
 @app.get("/")
 def home():
     if _INDEX.exists():
-        return FileResponse(_INDEX)
+        # the demo UI changes often; tell browsers not to serve a stale copy
+        return FileResponse(_INDEX, headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
     return {"service": "get-time-back", "docs": "/docs"}
 
 
