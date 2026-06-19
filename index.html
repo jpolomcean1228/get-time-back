@@ -27,12 +27,25 @@
        line-height:1.55;-webkit-font-smoothing:antialiased;
        background:var(--paper);}
   .wrap{max-width:920px;margin:0 auto;padding:48px 24px 80px;}
-  header.masthead{border-bottom:2px solid var(--ink);padding-bottom:18px;margin-bottom:8px;
-    display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;}
-  .brand h1{font-family:var(--serif);font-size:34px;font-weight:600;letter-spacing:-.5px;margin:0;}
-  .brand p{margin:4px 0 0;color:var(--ink-soft);font-size:14.5px;max-width:46ch;}
-  .ribbon{font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;
-    color:var(--ink-soft);border:1px solid var(--line-strong);border-radius:2px;padding:4px 8px;white-space:nowrap;}
+  .appbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:14px;
+    padding:13px 16px;margin-bottom:6px;
+    background:rgba(251,245,234,.86);
+    -webkit-backdrop-filter:saturate(1.1) blur(9px);backdrop-filter:saturate(1.1) blur(9px);
+    border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 20px rgba(65,48,31,.08);}
+  .logo{flex:none;line-height:0;filter:drop-shadow(0 2px 5px rgba(65,48,31,.18));}
+  .brand{display:flex;flex-direction:column;gap:1px;min-width:0;}
+  .eyebrow-brand{font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--ink-soft);}
+  .brand h1{font-family:var(--serif);font-size:27px;font-weight:600;letter-spacing:-.4px;margin:0;line-height:1.05;}
+  .appbar .ribbon{margin-left:auto;}
+  .hero{margin:18px 2px 4px;}
+  .lede{margin:0;font-size:17.5px;line-height:1.62;color:var(--ink);max-width:64ch;}
+  .lede strong{font-weight:600;}
+  mark.hl{background:linear-gradient(180deg,transparent 58%,var(--r-deleg-bg) 58%);
+    color:inherit;font-weight:600;padding:0 .1em;border-radius:1px;
+    -webkit-box-decoration-break:clone;box-decoration-break:clone;}
+  mark.hl.alt{background:linear-gradient(180deg,transparent 58%,var(--presence-bg) 58%);color:var(--presence);}
+  .ribbon{font-family:var(--mono);font-size:10px;letter-spacing:.8px;text-transform:uppercase;
+    color:var(--ink-soft);border:1px solid var(--line-strong);border-radius:999px;padding:5px 11px;white-space:nowrap;background:var(--paper);}
 
   .panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;margin-top:28px;}
   .panel .ph{padding:16px 20px 0;}
@@ -183,13 +196,26 @@
 </head>
 <body>
 <div class="wrap">
-  <header class="masthead">
+  <header class="appbar">
+    <span class="logo" aria-hidden="true">
+      <svg viewBox="0 0 44 44" width="42" height="42" role="img" aria-label="Get Time Back">
+        <rect x="1" y="1" width="42" height="42" rx="13" fill="#62753F"/>
+        <circle cx="22" cy="22" r="11.5" fill="none" stroke="#FBF5EA" stroke-width="2.3"/>
+        <path d="M22 22 L22 14.5" stroke="#FBF5EA" stroke-width="2.3" stroke-linecap="round"/>
+        <path d="M22 22 L27.5 24.6" stroke="#D9A441" stroke-width="2.3" stroke-linecap="round"/>
+        <circle cx="22" cy="22" r="1.7" fill="#FBF5EA"/>
+      </svg>
+    </span>
     <div class="brand">
+      <span class="eyebrow-brand">Virtual PM · Time, reclaimed</span>
       <h1>Get Time Back</h1>
-      <p>Drop in a messy day. It reads each item for its <em>true</em> cost — travel, waiting, and the focus it shatters around it — then credits the time a smarter move would return to you.</p>
     </div>
     <div class="ribbon" id="ribbon" title="Checking for the live engine…">○ checking engine…</div>
   </header>
+
+  <div class="hero">
+    <p class="lede">A virtual PM that reads a messy day and surfaces each item's <mark class="hl">true cost</mark> — travel, waiting, and the focus it shatters around it — then <mark class="hl alt">credits back the time</mark> a smarter move would return. The goal isn't to do more — it's to <strong>subtract logistics so presence can grow</strong>.</p>
+  </div>
 
   <section class="panel">
     <div class="ph">
