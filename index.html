@@ -162,6 +162,28 @@
     .logged-foot>:nth-child(2),.logged-foot>:nth-child(3){display:none;}
   }
 
+  /* net gain/loss chart */
+  .chart-wrap{margin:14px 20px 4px;}
+  .chart-legend{display:flex;gap:16px;flex-wrap:wrap;font-family:var(--mono);font-size:10.5px;
+    letter-spacing:.3px;color:var(--ink-soft);margin-bottom:8px;}
+  .chart-legend span{display:inline-flex;align-items:center;gap:6px;}
+  .chart-legend .sw{width:11px;height:11px;border-radius:3px;display:inline-block;}
+  .chart-legend .sw.gain{background:var(--presence);}
+  .chart-legend .sw.loss{background:var(--r-elim);}
+  .chart-legend .sw.line{height:0;border-top:2.4px solid var(--ink-soft);border-radius:0;width:14px;}
+  .netchart{width:100%;height:auto;display:block;overflow:visible;}
+  .netchart .bar-gain{fill:var(--presence);opacity:.82;}
+  .netchart .bar-loss{fill:var(--r-elim);opacity:.82;}
+  .netchart .bar-gain:hover,.netchart .bar-loss:hover{opacity:1;}
+  .netchart .netline{fill:none;stroke-width:2.4;stroke-linejoin:round;stroke-linecap:round;}
+  .netchart .netline.pos{stroke:var(--presence);}
+  .netchart .netline.neg{stroke:var(--r-elim);}
+  .netchart .dot{fill:var(--surface);stroke-width:2;}
+  .netchart .dot.pos{stroke:var(--presence);}
+  .netchart .dot.neg{stroke:var(--r-elim);}
+  .netchart .zeroline{stroke:var(--line-strong);stroke-width:1.4;stroke-dasharray:4 4;}
+  .netchart .cx-lab,.netchart .cy-lab{fill:var(--ink-soft);font-family:var(--mono);font-size:10px;}
+
   /* engine mode on the ribbon */
   .ribbon.live{color:var(--presence);border-color:#CBD3B8;background:var(--presence-bg);}
   .ribbon.offline{color:var(--ink-soft);}
@@ -307,6 +329,14 @@
         <h2>Time saved &amp; time lost</h2>
       </div>
       <div class="logged-verdict" id="logged-verdict"></div>
+      <div class="chart-wrap">
+        <div class="chart-legend">
+          <span><i class="sw gain"></i> gained (saved)</span>
+          <span><i class="sw loss"></i> lost (overran)</span>
+          <span><i class="sw line"></i> running net</span>
+        </div>
+        <div id="logged-chart"></div>
+      </div>
       <div class="logged-ledger">
         <div class="lhead-logged">
           <div>Item</div>
@@ -656,6 +686,59 @@ function renderLoggedTable(){
     verdict.className = "logged-verdict even";
     verdict.innerHTML = `It <b>equalizes</b> \u2014 time saved cancels time lost. You're breaking even on logged items.`;
   }
+
+  renderLoggedChart();
+}
+
+function shortTitle(t){ return t.length > 13 ? t.slice(0,12) + "\u2026" : t; }
+
+// diverging bars (gain up / loss down) + a cumulative running-net line
+function renderLoggedChart(){
+  const host = document.getElementById("logged-chart");
+  if(!loggedEntries.length){ host.innerHTML = ""; return; }
+
+  const W = 720, H = 230, padL = 42, padR = 14, padT = 16, padB = 38;
+  const n = loggedEntries.length;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+
+  const vals = loggedEntries.map(e => e.saved > 0 ? e.saved : -e.lost);  // +gain / -loss per item
+  let run = 0; const cum = vals.map(v => (run += v));                    // cumulative net
+
+  let maxY = Math.max(0, ...vals, ...cum), minY = Math.min(0, ...vals, ...cum);
+  const pad = (maxY - minY) * 0.14 || 10; maxY += pad; minY -= pad;
+  const y = v => padT + plotH * (maxY - v) / (maxY - minY);
+  const band = plotW / n, barW = Math.min(46, band * 0.5);
+  const cx = i => padL + band * (i + 0.5);
+  const zeroY = y(0);
+
+  const bars = loggedEntries.map((e, i) => {
+    const v = vals[i], yy = y(v);
+    const top = Math.min(yy, zeroY), h = Math.max(1, Math.abs(yy - zeroY));
+    return `<rect class="${v >= 0 ? 'bar-gain' : 'bar-loss'}" x="${(cx(i) - barW / 2).toFixed(1)}"
+      y="${top.toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" rx="3">
+      <title>${escapeHtml(e.title)}: ${v >= 0 ? '+' + v : v} min</title></rect>`;
+  }).join("");
+
+  const pts = cum.map((v, i) => `${cx(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+  const lastPos = cum[cum.length - 1] >= 0;
+  const dots = cum.map((v, i) => `<circle class="dot ${v >= 0 ? 'pos' : 'neg'}"
+      cx="${cx(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3.6">
+      <title>running net after ${i + 1}: ${v >= 0 ? '+' + v : v} min</title></circle>`).join("");
+
+  const xlabs = loggedEntries.map((e, i) =>
+    `<text class="cx-lab" x="${cx(i).toFixed(1)}" y="${(H - padB + 16)}" text-anchor="middle">${escapeHtml(shortTitle(e.title))}</text>`).join("");
+  const ylab = v => `<text class="cy-lab" x="${padL - 8}" y="${(y(v) + 3).toFixed(1)}" text-anchor="end">${v > 0 ? '+' + Math.round(v) : Math.round(v)}</text>`;
+
+  host.innerHTML = `
+    <svg viewBox="0 0 ${W} ${H}" class="netchart" role="img"
+         aria-label="Net time gained or lost per logged item, with the running net">
+      <line class="zeroline" x1="${padL}" y1="${zeroY.toFixed(1)}" x2="${W - padR}" y2="${zeroY.toFixed(1)}"/>
+      ${ylab(maxY - pad)}${ylab(0)}${ylab(minY + pad)}
+      ${bars}
+      <polyline class="netline ${lastPos ? 'pos' : 'neg'}" points="${pts}"/>
+      ${dots}
+      ${xlabs}
+    </svg>`;
 }
 
 // ---- Phase 3: the confirm gate -------------------------------------------
