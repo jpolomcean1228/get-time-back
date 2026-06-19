@@ -112,6 +112,21 @@
   .foot{margin-top:26px;color:var(--ink-soft);font-size:12.5px;text-align:center;line-height:1.7;}
   .empty{padding:40px 20px;text-align:center;color:var(--ink-soft);font-size:14px;}
 
+  /* app-style footer status bar */
+  .statusbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:30px;
+    padding:10px 15px;background:var(--surface);border:1px solid var(--line);border-radius:12px;
+    font-family:var(--mono);font-size:11px;letter-spacing:.3px;color:var(--ink-soft);
+    box-shadow:0 4px 14px rgba(65,48,31,.06);}
+  .sb-left{font-weight:600;color:var(--ink);display:inline-flex;align-items:center;}
+  .sb-dot{width:7px;height:7px;border-radius:50%;background:var(--ink-soft);
+    margin-right:7px;box-shadow:0 0 0 3px var(--line);transition:background .25s,box-shadow .25s;}
+  .sb-engine{margin-left:auto;border:1px solid var(--line-strong);border-radius:999px;
+    padding:3px 10px;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap;}
+  .sb-engine.live{color:var(--presence);border-color:#D2D6B8;background:var(--presence-bg);}
+  .sb-right{color:var(--ink-soft);}
+  .statusbar.live .sb-dot{background:var(--presence);box-shadow:0 0 0 3px var(--presence-bg);}
+  @media (max-width:560px){ .sb-right{display:none;} }
+
   /* engine mode on the ribbon */
   .ribbon.live{color:var(--presence);border-color:#CBD3B8;background:var(--presence-bg);}
   .ribbon.offline{color:var(--ink-soft);}
@@ -256,6 +271,12 @@
       Nothing leaves your browser. This page runs entirely offline.
     </p>
   </div>
+
+  <footer class="statusbar">
+    <span class="sb-left"><span class="sb-dot"></span>Get Time Back · v0.1</span>
+    <span class="sb-engine" id="sb-engine">checking engine…</span>
+    <span class="sb-right">Runs in your browser · nothing leaves it</span>
+  </footer>
 </div>
 
 <script>
@@ -444,6 +465,14 @@ function setRibbon(){
   } else {
     r.className="ribbon offline"; r.textContent="\u25CB demo mode \u2014 static rules";
     r.title="No backend connected (e.g. the public link) \u2014 using the built-in rules engine. Run the service locally to go live.";
+  }
+  // mirror the state into the footer status bar
+  const bar = document.querySelector(".statusbar");
+  const eng = document.getElementById("sb-engine");
+  if(bar) bar.classList.toggle("live", state.live);
+  if(eng){
+    eng.textContent = state.live ? "live engine" : "demo mode";
+    eng.classList.toggle("live", state.live);
   }
 }
 
