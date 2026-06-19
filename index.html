@@ -127,6 +127,41 @@
   .statusbar.live .sb-dot{background:var(--presence);box-shadow:0 0 0 3px var(--presence-bg);}
   @media (max-width:560px){ .sb-right{display:none;} }
 
+  /* logged actuals: saved vs lost + the net verdict */
+  .logged-panel{margin-top:28px;}
+  .logged-verdict{margin:0 20px;padding:13px 16px;border-radius:10px;font-size:14.5px;
+    border:1px solid var(--line);background:var(--paper);}
+  .logged-verdict b{font-weight:700;}
+  .logged-verdict.gain{background:var(--presence-bg);border-color:#D2D6B8;color:var(--ink);}
+  .logged-verdict.gain b{color:var(--presence);}
+  .logged-verdict.loss{background:var(--r-elim-bg);border-color:#E6C9B6;color:var(--ink);}
+  .logged-verdict.loss b{color:var(--r-elim);}
+  .logged-verdict.even{background:var(--r-deleg-bg);border-color:#E4D2A6;color:var(--ink);}
+  .logged-verdict.even b{color:var(--r-deleg);}
+  .logged-ledger{margin:16px 0 18px;border-top:1px solid var(--line);}
+  .lhead-logged,.logged-row,.logged-foot{display:grid;
+    grid-template-columns:1fr 84px 84px 78px 78px;gap:10px;padding:11px 20px;align-items:center;}
+  .lhead-logged{font-family:var(--mono);font-size:10.5px;letter-spacing:1px;text-transform:uppercase;
+    color:var(--ink-soft);border-bottom:1px solid var(--line);background:#F6ECD8;}
+  .lhead-logged .num{text-align:right;}
+  .logged-row{border-bottom:1px solid var(--line);animation:rise .28s var(--ease) both;}
+  .logged-row .litem{font-weight:600;font-size:14px;}
+  .logged-row .lcat{font-family:var(--mono);font-size:10.5px;color:var(--ink-soft);margin-top:2px;}
+  .lnum{text-align:right;font-family:var(--mono);font-size:13.5px;}
+  .lnum .lu{font-size:10.5px;color:var(--ink-soft);}
+  .lnum.saved{color:var(--presence);font-weight:600;}
+  .lnum.lost{color:var(--r-elim);font-weight:600;}
+  .lnum.dash{color:var(--ink-soft);}
+  .logged-foot{border-top:2px solid var(--line-strong);background:#F6ECD8;}
+  .logged-foot .flabel{font-family:var(--mono);font-size:11px;letter-spacing:.6px;text-transform:uppercase;
+    font-weight:700;color:var(--ink-soft);}
+  @media (max-width:600px){
+    .lhead-logged,.logged-row,.logged-foot{grid-template-columns:1fr 70px 70px;}
+    .lhead-logged>:nth-child(2),.lhead-logged>:nth-child(3),
+    .logged-row>:nth-child(2),.logged-row>:nth-child(3),
+    .logged-foot>:nth-child(2),.logged-foot>:nth-child(3){display:none;}
+  }
+
   /* engine mode on the ribbon */
   .ribbon.live{color:var(--presence);border-color:#CBD3B8;background:var(--presence-bg);}
   .ribbon.offline{color:var(--ink-soft);}
@@ -265,6 +300,25 @@
       </div>
       <div id="rows"></div>
     </div>
+
+    <section class="panel logged-panel" id="logged-panel" hidden>
+      <div class="ph">
+        <div class="eyebrow">Logged vs estimated</div>
+        <h2>Time saved &amp; time lost</h2>
+      </div>
+      <div class="logged-verdict" id="logged-verdict"></div>
+      <div class="logged-ledger">
+        <div class="lhead-logged">
+          <div>Item</div>
+          <div class="num">Estimated</div>
+          <div class="num">Logged</div>
+          <div class="num">Saved</div>
+          <div class="num">Lost</div>
+        </div>
+        <div id="logged-rows"></div>
+        <div class="logged-foot" id="logged-foot"></div>
+      </div>
+    </section>
 
     <p class="foot">
       Estimates are heuristic — a stand-in for the learned engine in Phase 1.<br>
@@ -519,7 +573,7 @@ function learnControl(i){
     <div class="learn">
       <span class="conf">conf ${pct}%${lvl}</span>
       <span class="meter"><i style="width:${pct}%"></i></span>
-      <span class="logactual" data-cat="${i.cat}" data-title="${escapeHtml(i.title)}">
+      <span class="logactual" data-cat="${i.cat}" data-title="${escapeHtml(i.title)}" data-est="${i.total}">
         <span class="lbl">took</span>
         <input type="number" min="1" placeholder="min" aria-label="actual minutes for ${escapeHtml(i.title)}">
         <button type="button">log</button>
@@ -548,10 +602,61 @@ document.getElementById("rows").addEventListener("click", async (e)=>{
   btn.disabled=true; btn.textContent="\u2026";
   const ok = await postActual(box.dataset.title, box.dataset.cat, minutes);
   if(ok){
+    recordLogged(box.dataset.title, box.dataset.cat,
+                 parseInt(box.dataset.est,10)||0, minutes);   // saved vs lost
     box.outerHTML = `<span class="logged">\u2713 logged \u2014 re-running</span>`;
     await analyze(document.getElementById("input").value);  // confidence climbs
+    renderLoggedTable();   // re-render survives the row rebuild
+    document.getElementById("logged-panel").scrollIntoView({behavior:"smooth",block:"start"});
   } else { btn.disabled=false; btn.textContent="log"; }
 });
+
+// ---- logged actuals: time saved vs lost, and the running net --------------
+const loggedEntries = [];   // {title, cat, est, actual, saved, lost}
+
+function recordLogged(title, cat, est, actual){
+  const saved = actual < est ? est - actual : 0;   // came in under estimate
+  const lost  = actual > est ? actual - est : 0;   // overran it
+  loggedEntries.push({title, cat, est, actual, saved, lost});
+}
+
+function renderLoggedTable(){
+  const panel = document.getElementById("logged-panel");
+  if(!loggedEntries.length){ panel.hidden = true; return; }
+  panel.hidden = false;
+
+  const rows = loggedEntries.map(e=>`
+    <div class="logged-row">
+      <div><div class="litem">${escapeHtml(e.title)}</div>
+           <div class="lcat">${escapeHtml(e.cat).replace(/-/g,' ')}</div></div>
+      <div class="lnum">${e.est}<span class="lu"> min</span></div>
+      <div class="lnum">${e.actual}<span class="lu"> min</span></div>
+      <div class="lnum ${e.saved>0?'saved':'dash'}">${e.saved>0?'+'+e.saved:'\u2014'}</div>
+      <div class="lnum ${e.lost>0?'lost':'dash'}">${e.lost>0?'\u2212'+e.lost:'\u2014'}</div>
+    </div>`).join("");
+  document.getElementById("logged-rows").innerHTML = rows;
+
+  const saved = loggedEntries.reduce((a,e)=>a+e.saved,0);
+  const lost  = loggedEntries.reduce((a,e)=>a+e.lost,0);
+  const net   = saved - lost;                       // + gain, - loss, 0 break-even
+  document.getElementById("logged-foot").innerHTML = `
+    <div class="flabel">Totals \u00b7 ${loggedEntries.length} logged</div>
+    <div class="lnum"></div><div class="lnum"></div>
+    <div class="lnum ${saved>0?'saved':'dash'}">${saved>0?'+'+saved:'\u2014'}</div>
+    <div class="lnum ${lost>0?'lost':'dash'}">${lost>0?'\u2212'+lost:'\u2014'}</div>`;
+
+  const verdict = document.getElementById("logged-verdict");
+  if(net > 0){
+    verdict.className = "logged-verdict gain";
+    verdict.innerHTML = `Net <b>gain</b> \u2014 you've saved <b>${net} min</b> more than you've lost across logged items. Time's working for you.`;
+  } else if(net < 0){
+    verdict.className = "logged-verdict loss";
+    verdict.innerHTML = `Net <b>loss</b> \u2014 you're <b>${-net} min</b> over across logged items. Worth a look at where the time is going.`;
+  } else {
+    verdict.className = "logged-verdict even";
+    verdict.innerHTML = `It <b>equalizes</b> \u2014 time saved cancels time lost. You're breaking even on logged items.`;
+  }
+}
 
 // ---- Phase 3: the confirm gate -------------------------------------------
 function actionControl(i){
