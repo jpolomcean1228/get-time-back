@@ -126,3 +126,11 @@ threshold and beats suppression; pass `now_min` for tz-correct timing
 (`app/agent/urgency.py`). Feedback gains `edited_to`: edits count as wanted,
 repeated edits become surfaced preferences, and learning decays to a 90-day
 window. See `service/AGENT_SETUP.md`.
+
+## Phase 6.3 — Agent brief UI
+
+A surface for the agent at `agent.html` (served at `/brief` and `/agent.html`):
+runs `/agent/run`, shows the decide-now vs. wait split with leave-by notes and
+the value score, and wires accept/reject/edit buttons to `/agent/feedback` with
+a live "what the agent has learned" panel (threshold, suppressed kinds,
+preferred edits). Linked from the ledger header. Needs the running service.

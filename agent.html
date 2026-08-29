@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent brief · Get Time Back</title>
+<style>
+  :root{
+    --paper:#FFFFFF; --surface:#FBF5EA; --ink:#41301F; --ink-soft:#7A6850;
+    --line:#E8DDC8; --line-strong:#D3C2A4;
+    --presence:#62753F; --presence-bg:#E9EBD3;
+    --r-auto:#7A5A40; --r-auto-bg:#ECDFCC;
+    --r-deleg:#AE8129; --r-deleg-bg:#F3E7C8;
+    --r-protect:#4F6B4D; --r-protect-bg:#E3EBD9;
+    --r-elim:#B05C3A; --r-elim-bg:#F3E1D2;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --t:.22s; --ease:cubic-bezier(.4,0,.2,1);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;color:var(--ink);font-family:var(--sans);background:var(--paper);
+       -webkit-font-smoothing:antialiased;}
+  main{max-width:940px;margin:0 auto;padding:0 26px 90px;}
+  header{position:sticky;top:0;z-index:5;backdrop-filter:blur(8px);
+    background:rgba(251,245,234,.86);border-bottom:1px solid var(--line);}
+  .hrow{max-width:940px;margin:0 auto;padding:16px 26px;display:flex;align-items:center;gap:16px;}
+  .eyebrow-brand{font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--ink-soft);}
+  .brand h1{font-family:var(--serif);font-size:23px;font-weight:600;letter-spacing:-.4px;margin:2px 0 0;line-height:1.05;}
+  .grow{flex:1;}
+  a.back{font-family:var(--mono);font-size:11px;letter-spacing:.6px;text-transform:uppercase;
+    color:var(--ink-soft);text-decoration:none;border-bottom:1px solid var(--line-strong);padding-bottom:2px;}
+  a.back:hover{color:var(--presence);border-color:var(--presence);}
+  .ribbon{font-family:var(--mono);font-size:10px;letter-spacing:.8px;text-transform:uppercase;
+    color:var(--ink-soft);border:1px solid var(--line-strong);border-radius:999px;padding:5px 11px;
+    white-space:nowrap;background:var(--paper);transition:color var(--t),background var(--t),border-color var(--t);}
+  .ribbon.live{color:var(--presence);border-color:#CBD3B8;background:var(--presence-bg);}
+  .ribbon.offline{color:var(--r-elim);border-color:#E4C6B4;background:var(--r-elim-bg);}
+
+  .lede{margin:34px 0 0;font-size:17.5px;line-height:1.62;color:var(--ink);max-width:66ch;}
+  .lede .q{font-family:var(--serif);font-style:italic;}
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;margin-top:26px;}
+  .ph{padding:18px 22px 0;}
+  .ph .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-soft);}
+  .ph h2{font-family:var(--serif);font-size:20px;font-weight:600;margin:6px 0 0;}
+  .pbody{padding:14px 22px 20px;}
+  textarea{width:100%;border:none;outline:none;resize:vertical;background:transparent;
+    font-family:var(--sans);font-size:15.5px;line-height:1.95;color:var(--ink);min-height:132px;}
+  .controls{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:8px;
+    border-top:1px solid var(--line);padding-top:16px;}
+  label.now{font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--ink-soft);
+    display:flex;align-items:center;gap:9px;}
+  input[type=time]{font-family:var(--mono);font-size:14px;color:var(--ink);background:var(--paper);
+    border:1px solid var(--line-strong);border-radius:5px;padding:6px 9px;}
+  button.run{font-family:var(--sans);font-size:15px;font-weight:600;color:#fff;background:var(--ink);
+    border:none;border-radius:5px;padding:11px 22px;cursor:pointer;transition:background var(--t) var(--ease);}
+  button.run:hover{background:var(--presence);}
+  button.run:disabled{opacity:.4;cursor:not-allowed;}
+  .hint{color:var(--ink-soft);font-size:13px;line-height:1.5;}
+
+  /* headline + score */
+  .headline{font-family:var(--serif);font-size:20.5px;line-height:1.5;margin:0;color:var(--ink);}
+  .totals{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);
+    border:1px solid var(--line);border-radius:6px;overflow:hidden;margin-top:18px;}
+  .tot{background:var(--surface);padding:18px 20px;}
+  .tot .k{font-family:var(--mono);font-size:10.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--ink-soft);}
+  .tot .v{font-family:var(--mono);font-size:29px;font-weight:600;margin-top:5px;letter-spacing:-1px;}
+
+  .group-h{font-family:var(--mono);font-size:11px;letter-spacing:1.6px;text-transform:uppercase;
+    color:var(--ink-soft);margin:30px 0 12px;display:flex;align-items:center;gap:10px;}
+  .group-h .rule{flex:1;height:1px;background:var(--line);}
+  .group-h.now .cnt{color:var(--r-elim);}
+
+  .card{background:var(--surface);border:1px solid var(--line);border-left-width:3px;border-radius:6px;
+    padding:15px 18px;margin-top:10px;transition:opacity var(--t),transform var(--t) var(--ease);}
+  .card[data-kind=protect]{border-left-color:var(--r-protect);}
+  .card[data-kind=handoff]{border-left-color:var(--r-deleg);}
+  .card[data-kind=reclaim]{border-left-color:var(--r-auto);}
+  .card.acted{opacity:.55;}
+  .badges{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .badge{font-family:var(--mono);font-size:10px;letter-spacing:.6px;text-transform:uppercase;
+    padding:3px 8px;border-radius:999px;border:1px solid transparent;}
+  .badge.k-protect{color:var(--r-protect);background:var(--r-protect-bg);}
+  .badge.k-handoff{color:var(--r-deleg);background:var(--r-deleg-bg);}
+  .badge.k-reclaim{color:var(--r-auto);background:var(--r-auto-bg);}
+  .badge.u-now,.badge.u-soon{color:var(--r-elim);background:var(--r-elim-bg);}
+  .badge.u-today{color:var(--ink-soft);border-color:var(--line-strong);}
+  .badge.u-flexible{color:var(--ink-soft);background:var(--paper);border-color:var(--line);}
+  .mins{margin-left:auto;font-family:var(--mono);font-size:13px;color:var(--presence);font-weight:600;}
+  .card h3{font-family:var(--sans);font-size:15.5px;font-weight:650;margin:11px 0 4px;}
+  .card p{margin:0;font-size:14px;line-height:1.55;color:var(--ink-soft);}
+  .acts{display:flex;gap:8px;margin-top:13px;}
+  .acts button{font-family:var(--sans);font-size:12.5px;font-weight:600;cursor:pointer;border-radius:5px;
+    padding:6px 13px;border:1px solid var(--line-strong);background:var(--paper);color:var(--ink);
+    transition:background var(--t),color var(--t),border-color var(--t);}
+  .acts button.accept:hover{background:var(--presence);color:#fff;border-color:var(--presence);}
+  .acts button.reject:hover{background:var(--r-elim);color:#fff;border-color:var(--r-elim);}
+  .acts button.edit:hover{background:var(--r-deleg);color:#fff;border-color:var(--r-deleg);}
+  .verdict{font-family:var(--mono);font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;
+    color:var(--ink-soft);margin-top:12px;}
+
+  .critique{margin-top:26px;border-top:1px dashed var(--line-strong);padding-top:16px;}
+  .critique .eyebrow{font-family:var(--mono);font-size:10.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--ink-soft);}
+  .critique li{font-size:14px;line-height:1.6;color:var(--ink);margin-top:7px;}
+
+  /* learned panel */
+  .learned{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);
+    border:1px solid var(--line);border-radius:6px;overflow:hidden;}
+  .lc{background:var(--surface);padding:16px 18px;}
+  .lc .k{font-family:var(--mono);font-size:10px;letter-spacing:1.1px;text-transform:uppercase;color:var(--ink-soft);}
+  .lc .v{font-family:var(--mono);font-size:22px;font-weight:600;margin-top:6px;letter-spacing:-.5px;color:var(--ink);}
+  .lc .v.small{font-size:13.5px;line-height:1.5;letter-spacing:0;font-weight:500;}
+  .lc .v.small em{font-style:normal;color:var(--presence);}
+  .rerun{font-family:var(--sans);font-size:13px;font-weight:600;color:var(--presence);background:none;border:none;
+    cursor:pointer;text-decoration:underline;text-underline-offset:3px;padding:0;}
+
+  .note{background:var(--r-elim-bg);border:1px solid #E4C6B4;border-radius:6px;padding:18px 20px;margin-top:26px;
+    font-size:14.5px;line-height:1.6;color:var(--ink);}
+  .note code{font-family:var(--mono);font-size:13px;background:var(--paper);padding:1px 5px;border-radius:3px;}
+  .spin{color:var(--ink-soft);font-size:14px;margin-top:26px;}
+</style>
+</head>
+<body>
+<header>
+  <div class="hrow">
+    <div class="brand">
+      <div class="eyebrow-brand">Get Time Back</div>
+      <h1>Agent brief</h1>
+    </div>
+    <div class="grow"></div>
+    <div class="ribbon" id="ribbon" title="Checking for the live agent…">○ checking…</div>
+    <a class="back" href="./">← ledger</a>
+  </div>
+</header>
+
+<main>
+  <p class="lede">The background agent reads your day, scores it, and decides what's worth
+  interrupting you for. Value asks <span class="q">is this worth it?</span> — urgency asks
+  <span class="q">is it too late to wait?</span> Act on a suggestion and watch, below, what the
+  agent learns about your restraint.</p>
+
+  <section class="panel">
+    <div class="ph"><div class="eyebrow">Your day</div><h2>Run the agent</h2></div>
+    <div class="pbody">
+      <textarea id="tasks" spellcheck="false"></textarea>
+      <div class="controls">
+        <label class="now">Now <input type="time" id="now"></label>
+        <button class="run" id="run">Run agent</button>
+        <span class="hint" id="run-hint">Set <b>Now</b> to around 3:00&nbsp;PM to watch the school pickup flip to <b>leave&nbsp;now</b>.</span>
+      </div>
+    </div>
+  </section>
+
+  <div id="out"></div>
+
+  <section class="panel" id="learned-panel" hidden>
+    <div class="ph"><div class="eyebrow">Over time</div><h2>What the agent has learned</h2></div>
+    <div class="pbody">
+      <div class="learned" id="learned"></div>
+      <p class="hint" style="margin-top:14px">Learning decays over a 90-day window, so it tracks a life that changes. <button class="rerun" id="rerun2">Re-run the brief →</button></p>
+    </div>
+  </section>
+</main>
+
+<script>
+const API_BASE = location.protocol === "file:" ? "http://127.0.0.1:8000" : "";
+const state = { live:false, lastRun:null };
+const SAMPLE = [
+  "3:15 pick up the twins from school and drive to soccer",
+  "email the contractor about the estimate",
+  "family dinner 6pm",
+  "book dentist appointments for the kids",
+  "read to the kids at bedtime",
+].join("\n");
+
+const $ = s => document.querySelector(s);
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+
+function setRibbon(){
+  const r = $("#ribbon");
+  if(state.live){ r.className="ribbon live"; r.textContent="\u25CF live agent"; r.title="Connected to the running service."; }
+  else{ r.className="ribbon offline"; r.textContent="\u25CB offline"; r.title="No backend — this view needs the running service for the learning loop."; }
+}
+async function checkHealth(){
+  try{ const res = await fetch(API_BASE+"/health"); state.live = res.ok; }
+  catch(_){ state.live = false; }
+  setRibbon();
+  $("#run").disabled = !state.live;
+  if(!state.live) showOffline();
+}
+
+function showOffline(){
+  $("#out").innerHTML = `<div class="note">This view runs the <b>live</b> agent — it needs the service so it can
+    remember what you do and adapt. Start it and reload:<br><br>
+    <code>cd service &amp;&amp; source .venv/bin/activate &amp;&amp; uvicorn app.main:app --reload</code><br><br>
+    then open <code>http://127.0.0.1:8000/brief</code>.</div>`;
+  $("#learned-panel").hidden = true;
+}
+
+function nowMin(){
+  const v = $("#now").value;
+  if(!v) return null;
+  const [h,m] = v.split(":").map(Number);
+  return h*60 + m;
+}
+
+async function run(){
+  if(!state.live){ showOffline(); return; }
+  const tasks = $("#tasks").value.split("\n").map(t=>t.trim()).filter(Boolean);
+  if(!tasks.length) return;
+  state.lastRun = { tasks, now_min: nowMin() };
+  $("#out").innerHTML = `<p class="spin">Running a cycle…</p>`;
+  try{
+    const res = await fetch(API_BASE+"/agent/run",{
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ tasks, include_calendar:false, now_min: nowMin() }),
+    });
+    if(!res.ok) throw new Error("run failed");
+    renderBrief(await res.json());
+    refreshLearned();
+  }catch(e){ state.live=false; setRibbon(); showOffline(); }
+}
+
+function card(s){
+  const u = escapeHtml(s.urgency);
+  return `<div class="card" data-kind="${escapeHtml(s.kind)}" data-id="${escapeHtml(s.id)}"
+      data-value="${s.value_minutes}" data-interrupt="${s.interrupt}">
+    <div class="badges">
+      <span class="badge k-${escapeHtml(s.kind)}">${escapeHtml(s.kind)}</span>
+      <span class="badge u-${u}">${u}</span>
+      <span class="mins">+${s.value_minutes} min</span>
+    </div>
+    <h3>${escapeHtml(s.title)}</h3>
+    <p>${escapeHtml(s.detail)}</p>
+    <div class="acts">
+      <button class="accept" data-v="accepted">Accept</button>
+      <button class="reject" data-v="rejected">Reject</button>
+      <button class="edit"   data-v="edited">Edit</button>
+    </div>
+  </div>`;
+}
+
+function group(title, cls, items){
+  if(!items.length) return "";
+  return `<div class="group-h ${cls}"><span>${title}</span><span class="cnt">${items.length}</span><span class="rule"></span></div>`
+    + items.map(card).join("");
+}
+
+function renderBrief(b){
+  const now = b.suggestions.filter(s=>s.interrupt);
+  const wait = b.suggestions.filter(s=>!s.interrupt);
+  const sc = b.score;
+  const crit = (b.critique||[]).map(n=>`<li>${escapeHtml(n)}</li>`).join("");
+  $("#out").innerHTML = `
+    <section class="panel"><div class="pbody">
+      <p class="headline">${escapeHtml(b.headline)}</p>
+      <div class="totals">
+        <div class="tot"><div class="k">Reclaimable</div><div class="v">${sc.reclaimable}<span style="font-size:14px"> min</span></div></div>
+        <div class="tot"><div class="k">Protected</div><div class="v">${sc.presence_protected}<span style="font-size:14px"> min</span></div></div>
+        <div class="tot"><div class="k">Value score</div><div class="v">${sc.score}</div></div>
+      </div>
+      ${group("Decide now","now",now)}
+      ${group("Can wait for the brief","wait",wait)}
+      ${crit ? `<div class="critique"><div class="eyebrow">The agent's read on this plan</div><ul>${crit}</ul></div>` : ""}
+    </div></section>`;
+  $("#out").querySelectorAll(".acts button").forEach(btn=>btn.addEventListener("click",onFeedback));
+}
+
+async function onFeedback(e){
+  const btn = e.currentTarget;
+  const c = btn.closest(".card");
+  const verdict = btn.dataset.v;
+  let edited_to = null;
+  if(verdict === "edited"){
+    edited_to = prompt("Change it to what? (e.g. a different person, time, or approach)");
+    if(edited_to === null) return;            // cancelled
+    edited_to = edited_to.trim() || null;
+  }
+  try{
+    await fetch(API_BASE+"/agent/feedback",{
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({
+        suggestion_id: c.dataset.id, kind: c.dataset.kind,
+        value_minutes: Number(c.dataset.value), interrupt: c.dataset.interrupt==="true",
+        verdict, edited_to,
+      }),
+    });
+  }catch(_){ return; }
+  c.classList.add("acted");
+  c.querySelector(".acts").outerHTML =
+    `<div class="verdict">\u2713 ${verdict}${edited_to?` \u2192 \u201C${escapeHtml(edited_to)}\u201D`:""} \u00B7 learned</div>`;
+  refreshLearned();
+}
+
+async function refreshLearned(){
+  try{
+    const res = await fetch(API_BASE+"/agent/feedback/stats");
+    if(!res.ok) return;
+    const s = await res.json();
+    const supp = s.suppressed_kinds.length ? s.suppressed_kinds.join(", ") : "\u2014";
+    const pe = Object.entries(s.preferred_edits||{});
+    const peHtml = pe.length
+      ? pe.map(([k,v])=>`${escapeHtml(k.split(":")[0])} \u2192 <em>${escapeHtml(v)}</em>`).join("<br>")
+      : "\u2014";
+    $("#learned").innerHTML = `
+      <div class="lc"><div class="k">Interrupt threshold</div><div class="v">${s.interrupt_min}<span style="font-size:12px"> min</span></div></div>
+      <div class="lc"><div class="k">Feedback logged</div><div class="v">${s.total}</div></div>
+      <div class="lc"><div class="k">Suppressed kinds</div><div class="v small">${escapeHtml(supp)}</div></div>
+      <div class="lc"><div class="k">Preferred edits</div><div class="v small">${peHtml}</div></div>`;
+    $("#learned-panel").hidden = false;
+  }catch(_){}
+}
+
+$("#run").addEventListener("click", run);
+$("#rerun2").addEventListener("click", run);
+(function init(){
+  $("#tasks").value = SAMPLE;
+  const d = new Date();
+  $("#now").value = String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
+  checkHealth();
+})();
+</script>
+</body>
+</html>
