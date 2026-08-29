@@ -203,3 +203,21 @@ class FeedbackStatsOut(BaseModel):
     suppressed_kinds: list[str]
     preferred_edits: dict       # signature -> what you keep changing it to
     learning_window_days: int   # only feedback newer than this shapes behavior
+
+
+# ---- Inbox / commitment extraction (a real source) ----
+
+class InboxIn(BaseModel):
+    text: Optional[str] = None   # paste a message/thread; if omitted, pull from the configured inbox
+
+
+class CommitmentOut(BaseModel):
+    task: str
+    cue: str                     # request | reminder | deadline | task | llm
+    confidence: float
+    source: str = ""
+
+
+class InboxOut(BaseModel):
+    commitments: list[CommitmentOut]
+    source: str                  # pasted text | mock inbox | gmail

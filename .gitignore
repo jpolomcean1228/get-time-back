@@ -18,3 +18,8 @@ __pycache__/
 venv/
 *.db
 .pytest_cache/
+
+# oauth tokens & client secrets — never commit (public repo)
+token*.json
+credentials*.json
+client_secret*.json

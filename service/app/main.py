@@ -34,7 +34,7 @@ from .models import (ActionRef, ActualIn, AvailabilityIn, CalendarEvent,
                      MembershipIn, PresenceBlockOut, PresencePlanOut,
                      ProfileIn, ProposedAction, RegisterIn, TokenOut, Totals,
                      ValueIn, AgentBriefOut, SuggestionOut, ValueScoreOut,
-                     FeedbackIn, FeedbackStatsOut)
+                     FeedbackIn, FeedbackStatsOut, InboxIn, InboxOut, CommitmentOut)
 from .presence import (DefendingExecutor, PresencePlanner, ProtectedBlocks,
                        Value, load_mock_values)
 from .store import ActualsStore
@@ -305,6 +305,30 @@ def agent_feedback_stats(user: Optional[User] = Depends(current_user)):
     """What the agent has learned so far — counts by kind, the current interrupt
     threshold, and any suppressed kinds."""
     return FeedbackStatsOut(**feedback.stats(user.id if user else None))
+
+
+@app.post("/agent/inbox", response_model=InboxOut)
+def agent_inbox(inb: InboxIn):
+    """Extract commitments from a real source. Paste a message/thread as `text`,
+    or omit it to pull from the configured inbox — real Gmail (read-only) when
+    GTB_GMAIL_READ points at your OAuth client secrets, otherwise a mock inbox
+    for the demo. Read-only; nothing is ever sent."""
+    from .agent.extract import extract
+    from .agent import sources as src
+    if inb.text and inb.text.strip():
+        commits, label = extract(inb.text, source="pasted"), "pasted text"
+    else:
+        creds = os.environ.get("GTB_GMAIL_READ")
+        if creds:
+            try:
+                commits, label = src.harvest(src.GmailInbox(creds).fetch(), extract), "gmail"
+            except Exception:
+                commits, label = src.harvest(src.mock_inbox(), extract), "mock inbox"
+        else:
+            commits, label = src.harvest(src.mock_inbox(), extract), "mock inbox"
+    return InboxOut(source=label, commitments=[
+        CommitmentOut(task=c.task, cue=c.cue, confidence=round(c.confidence, 2), source=c.source)
+        for c in commits])
 
 
 @app.post("/actuals")

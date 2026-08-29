@@ -7,9 +7,13 @@ from __future__ import annotations
 
 import sqlite3
 import threading
+import os
 from pathlib import Path
 
-DB_PATH = Path(__file__).resolve().parents[1] / "gtb.db"
+# Default lives beside the app; set GTB_DB_PATH to a mounted disk to persist
+# accounts + learned feedback across redeploys (otherwise the host disk is ephemeral).
+_DEFAULT_DB = Path(__file__).resolve().parents[1] / "gtb.db"
+DB_PATH = Path(os.environ.get("GTB_DB_PATH") or _DEFAULT_DB)
 _lock = threading.Lock()
 
 

@@ -134,3 +134,19 @@ runs `/agent/run`, shows the decide-now vs. wait split with leave-by notes and
 the value score, and wires accept/reject/edit buttons to `/agent/feedback` with
 a live "what the agent has learned" panel (threshold, suppressed kinds,
 preferred edits). Linked from the ledger header. Needs the running service.
+
+## Phase 6.4 — Real source: inbox to commitments
+
+Mines raw messages for hidden commitments (`app/agent/extract.py`, deterministic
++ optional LLM) and feeds them into the brief. `POST /agent/inbox` extracts from
+pasted text or a configured inbox — real read-only Gmail behind `GTB_GMAIL_READ`
+(`app/agent/sources.py`, scope `gmail.readonly`), mock inbox otherwise. Surfaced
+in the brief UI via a "Pull from your inbox" panel. See `service/SOURCES_SETUP.md`.
+
+## Deployment
+
+Mock-safe hosting config at repo root: `requirements.txt` (three runtime deps),
+`Procfile`, `render.yaml`, `runtime.txt`. Start: `uvicorn app.main:app --app-dir
+service --host 0.0.0.0 --port $PORT`. All real integrations stay flag-gated, so a
+default deploy holds no secrets. `GTB_DB_PATH` makes SQLite persistence optional.
+Deployed (unlike Pages), `/brief` is fully live. See `DEPLOY.md`.

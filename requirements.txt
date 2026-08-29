@@ -1,0 +1,10 @@
+# Runtime — mock mode needs only these three.
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic>=2.6
+
+# Optional — install only to enable real integrations (all off by default):
+#   google-api-python-client>=2.100   # Google Calendar read + Gmail
+#   google-auth-oauthlib>=1.2         # OAuth consent flow
+#   google-auth-httplib2>=0.2
+#   anthropic>=0.39                   # Claude for estimate/critique/extraction (GTB_AGENT_LLM=1)
