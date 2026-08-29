@@ -70,6 +70,12 @@
   .tot .u{font-size:13px;color:var(--ink-soft);margin-left:2px;}
   .tot.hero .v{color:var(--presence);}
   .tot .sub{font-size:12.5px;color:var(--ink-soft);margin-top:2px;}
+  .reclaimprog{margin-top:11px;}
+  .reclaimbar{height:6px;border-radius:4px;background:var(--line);overflow:hidden;}
+  .reclaimbar>i{display:block;height:100%;width:0;background:var(--presence);
+    border-radius:4px;transition:width .55s var(--ease);}
+  .reclaimsub{font-size:11.5px;color:var(--ink-soft);margin-top:6px;}
+  .reclaimsub b{color:var(--presence);font-family:var(--mono);font-weight:600;}
 
   .redirect{background:var(--presence-bg);border:1px solid #D2D6B8;border-radius:6px;
     padding:16px 20px;margin-top:20px;font-size:15px;}
@@ -317,7 +323,12 @@
   <div id="results" hidden>
     <div class="totals">
       <div class="tot"><div class="k">Committed as written</div><div class="v"><span id="t-committed">0</span><span class="u">min</span></div><div class="sub">logistics on today's list</div></div>
-      <div class="tot"><div class="k">Reclaimable</div><div class="v"><span id="t-reclaim">0</span><span class="u">min</span></div><div class="sub">if you take each suggested move</div></div>
+      <div class="tot"><div class="k">Reclaimable</div><div class="v"><span id="t-reclaim">0</span><span class="u">min</span></div><div class="sub">if you take each suggested move</div>
+        <div class="reclaimprog" id="reclaimprog" hidden>
+          <div class="reclaimbar"><i id="reclaimfill"></i></div>
+          <div class="reclaimsub"><b id="t-reclaimed">0</b> reclaimed &middot; <span id="t-reclaimpct">0%</span> of reclaimable taken</div>
+        </div>
+      </div>
       <div class="tot hero"><div class="k">Presence on the line</div><div class="v"><span id="t-presence">0</span><span class="u">min</span></div><div class="sub">the time worth defending</div></div>
     </div>
 
@@ -509,6 +520,8 @@ function render(items, serverTotals, presence){
   countUp(document.getElementById("t-committed"), committed, 650);
   countUp(document.getElementById("t-reclaim"),   reclaim,   800);
   countUp(document.getElementById("t-presence"),  presenceMin,  900);
+  state.reclaimable = reclaim;          // the denominator for reclaimed-vs-reclaimable
+  updateReclaimed();
 
   const hrs = (reclaim/60).toFixed(1).replace(/\.0$/,"");
   document.getElementById("redirect").innerHTML =
@@ -782,7 +795,15 @@ document.getElementById("logged-toggle").addEventListener("click", () => {
 function actionControl(i){
   if(!i.action) return "";
   const a = i.action;
-  return `<div class="act" data-aid="${escapeHtml(a.id)}" data-label="${escapeHtml(a.label)}" title="${escapeHtml(a.detail)}">
+  const attrs = `data-aid="${escapeHtml(a.id)}" data-label="${escapeHtml(a.label)}" data-reclaim="${i.reclaim||0}"`;
+  // already taken this session -> show the reclaimed state so it survives a re-read
+  if(reclaimedById.has(a.id)){
+    return `<div class="act" ${attrs}>
+        <span class="actok">✓ taken${i.reclaim>0?` · +${i.reclaim} min`:''}</span>
+        <button class="undobtn" type="button">undo</button>
+      </div>`;
+  }
+  return `<div class="act" ${attrs} title="${escapeHtml(a.detail)}">
       <button class="actbtn" type="button">${escapeHtml(a.label)}</button>
     </div>`;
 }
@@ -827,6 +848,8 @@ async function handleActionClick(e){
     if(r){
       box.innerHTML = `<span class="actok">\u2713 ${escapeHtml(r.result)}</span>`
         + ` <button class="undobtn" type="button">undo</button>`;
+      const rec = parseInt(box.dataset.reclaim||"0",10);
+      if(rec>0){ reclaimedById.set(box.dataset.aid, rec); updateReclaimed(); }  // button pushed -> reclaimed
     } else { confirmBtn.disabled=false; confirmBtn.textContent = box.dataset.label; }
     return;
   }
@@ -836,8 +859,25 @@ async function handleActionClick(e){
     undoBtn.disabled = true;
     await actionCall("/actions/undo", box.dataset.aid);
     box.innerHTML = `<button class="actbtn" type="button">${escapeHtml(box.dataset.label)}</button>`;
+    if(reclaimedById.delete(box.dataset.aid)) updateReclaimed();   // undone -> no longer reclaimed
     return;
   }
+}
+
+// ---- reclaimed vs reclaimable: what the pushed suggested-move buttons captured
+const reclaimedById = new Map();   // action id -> reclaim minutes (deduped, undo-aware)
+
+function updateReclaimed(){
+  const prog = document.getElementById("reclaimprog");
+  if(prog) prog.hidden = !state.live;          // actions only exist on the live engine
+  const reclaimed = [...reclaimedById.values()].reduce((a,b)=>a+b,0);
+  const reclaimable = state.reclaimable||0;
+  const pct = reclaimable>0 ? Math.min(100, Math.round(reclaimed/reclaimable*100)) : 0;
+  const set = (id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
+  set("t-reclaimed", reclaimed);
+  set("t-reclaimpct", pct+"%");
+  const fill = document.getElementById("reclaimfill");
+  if(fill) fill.style.width = pct+"%";
 }
 document.getElementById("rows").addEventListener("click", handleActionClick);
 document.getElementById("presence").addEventListener("click", handleActionClick);
