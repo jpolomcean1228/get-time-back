@@ -10,6 +10,7 @@ class EnrichRequest(BaseModel):
     tasks: list[str] = Field(default_factory=list, description="One line per item, as written")
     include_calendar: bool = Field(default=False, description="Fold today's calendar events into the list")
     include_actions: bool = Field(default=False, description="Attach a proposed, reversible action to each item")
+    now_min: Optional[int] = Field(default=None, description="Client-local minutes since midnight, for time-to-event urgency; server time if omitted")
 
 
 class ProposedAction(BaseModel):
@@ -152,3 +153,53 @@ class CalendarEvent(BaseModel):
     minutes: int
     location: str = ""
     attendees: int = 1
+
+
+# ---- Background agent (control-loop cycle output) ----
+
+class ValueScoreOut(BaseModel):
+    reclaimable: int
+    presence_protected: int
+    fragmentation: int
+    banked: int
+    score: float
+
+
+class SuggestionOut(BaseModel):
+    id: str
+    kind: str               # protect | handoff | reclaim | warning
+    title: str
+    detail: str
+    value_minutes: int
+    urgency: str            # now | today | flexible
+    interrupt: bool         # earns an interrupt vs. batched into the brief
+    action_id: str = ""
+
+
+class AgentBriefOut(BaseModel):
+    headline: str
+    score: ValueScoreOut
+    suggestions: list[SuggestionOut]
+    critique: list[str]
+    interrupt_count: int
+    brief_count: int
+
+
+# ---- Feedback harness (the agent learns your restraint) ----
+
+class FeedbackIn(BaseModel):
+    suggestion_id: str      # the stable signature from a brief suggestion's `id`
+    kind: str               # protect | handoff | reclaim
+    value_minutes: int
+    interrupt: bool         # was it surfaced as an interrupt?
+    verdict: str            # accepted | rejected | edited | ignored
+    edited_to: Optional[str] = None   # for verdict "edited": what you changed it to
+
+
+class FeedbackStatsOut(BaseModel):
+    total: int
+    by_kind: dict
+    interrupt_min: int          # the learned interrupt threshold (default 45)
+    suppressed_kinds: list[str]
+    preferred_edits: dict       # signature -> what you keep changing it to
+    learning_window_days: int   # only feedback newer than this shapes behavior

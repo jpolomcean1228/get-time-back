@@ -102,3 +102,27 @@ A guiding rule runs through all of it: **suggest before you act, and act before 
 | 5 | Presence actually grows | …this is the bar for success |
 
 The two product decisions to lock before Phase 1: **how reclaimed time is defended** (Phase 5's mechanic, but designed up front), and **where the line sits between logistics you compress and presence you never touch.** Those are the soul of the product; everything else is plumbing.
+
+## Phase 6 — Background agent
+
+A control loop above the engine: scores the day against a value function, ranks
+suggestions by value-per-interruption, self-critiques, and returns a timed brief
+(`POST /agent/run`). See `service/AGENT_SETUP.md`. Optimize / interrogate /
+suggest split across `app/agent/{value,planner,critic}.py`; deterministic core,
+optional LLM critique behind `GTB_AGENT_LLM=1`.
+
+## Phase 6.1 — Feedback harness
+
+The agent learns restraint: `POST /agent/feedback` records accept/reject/edit/
+ignore per suggestion, `GET /agent/feedback/stats` shows what it learned.
+Tunes a personalized interrupt threshold and suppresses waved-off kinds;
+`run_cycle` applies learned prefs before ranking. Stored in `gtb.db`
+(`agent_feedback`). See `service/AGENT_SETUP.md`.
+
+## Phase 6.2 — Urgency + edit-learning
+
+Time-to-event (`start - travel`) forces a leave-now interrupt past the value
+threshold and beats suppression; pass `now_min` for tz-correct timing
+(`app/agent/urgency.py`). Feedback gains `edited_to`: edits count as wanted,
+repeated edits become surfaced preferences, and learning decays to a 90-day
+window. See `service/AGENT_SETUP.md`.

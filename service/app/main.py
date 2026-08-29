@@ -33,10 +33,13 @@ from .models import (ActionRef, ActualIn, AvailabilityIn, CalendarEvent,
                      EnrichResponse, HouseholdCreateIn, JoinIn, LoginIn,
                      MembershipIn, PresenceBlockOut, PresencePlanOut,
                      ProfileIn, ProposedAction, RegisterIn, TokenOut, Totals,
-                     ValueIn)
+                     ValueIn, AgentBriefOut, SuggestionOut, ValueScoreOut,
+                     FeedbackIn, FeedbackStatsOut)
 from .presence import (DefendingExecutor, PresencePlanner, ProtectedBlocks,
                        Value, load_mock_values)
 from .store import ActualsStore
+from .agent import run_cycle as agent_run_cycle
+from .agent import FeedbackStore
 
 app = FastAPI(title="Get Time Back", version="0.1.0",
               description="Phase 1 — true-time estimation that learns from actuals.")
@@ -111,6 +114,7 @@ values_store = load_mock_values()
 planner = PresencePlanner()
 auth = AuthStore()
 households = HouseholdRepo()
+feedback = FeedbackStore()
 
 
 def current_user(authorization: Optional[str] = Header(default=None)) -> Optional[User]:
@@ -244,6 +248,52 @@ def enrich(req: EnrichRequest, user: Optional[User] = Depends(current_user)):
         engine=ENGINE_NAME,
         presence=presence_plan,
     )
+
+
+def _brief_to_model(brief) -> AgentBriefOut:
+    return AgentBriefOut(
+        headline=brief.headline,
+        score=ValueScoreOut(reclaimable=brief.score.reclaimable,
+                            presence_protected=brief.score.presence_protected,
+                            fragmentation=brief.score.fragmentation,
+                            banked=brief.score.banked, score=brief.score.score),
+        suggestions=[SuggestionOut(id=s.id, kind=s.kind, title=s.title, detail=s.detail,
+                                   value_minutes=s.value_minutes, urgency=s.urgency,
+                                   interrupt=s.interrupt, action_id=s.action_id)
+                     for s in brief.suggestions],
+        critique=brief.critique, interrupt_count=brief.interrupt_count,
+        brief_count=brief.brief_count)
+
+
+@app.post("/agent/run", response_model=AgentBriefOut)
+def agent_run(req: EnrichRequest, user: Optional[User] = Depends(current_user)):
+    """One background-agent cycle: score the day against the value function, rank
+    suggestions by value-per-interruption, self-critique, and return a timed
+    brief. Point a scheduler at this for a cadence wake, or call it from an
+    event handler. Reuses the full enrich pipeline as its perception step."""
+    req2 = EnrichRequest(tasks=req.tasks, include_calendar=req.include_calendar,
+                         include_actions=True)
+    day = enrich(req2, user)
+    prefs = feedback.prefs(user.id if user else None)
+    brief = agent_run_cycle(day.tasks, day.presence, prefs, req.now_min)
+    return _brief_to_model(brief)
+
+
+@app.post("/agent/feedback")
+def agent_feedback(fb: FeedbackIn, user: Optional[User] = Depends(current_user)):
+    """Record what you did with a suggestion. This is the training signal: it
+    tunes the interrupt threshold and suppresses kinds you wave off — per user
+    when signed in, shared otherwise. Send back the suggestion's `id`."""
+    feedback.record(fb.suggestion_id, fb.kind, fb.value_minutes, fb.interrupt,
+                    fb.verdict, user.id if user else None, fb.edited_to)
+    return {"ok": True}
+
+
+@app.get("/agent/feedback/stats", response_model=FeedbackStatsOut)
+def agent_feedback_stats(user: Optional[User] = Depends(current_user)):
+    """What the agent has learned so far — counts by kind, the current interrupt
+    threshold, and any suppressed kinds."""
+    return FeedbackStatsOut(**feedback.stats(user.id if user else None))
 
 
 @app.post("/actuals")
