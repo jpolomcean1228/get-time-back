@@ -150,3 +150,11 @@ Mock-safe hosting config at repo root: `requirements.txt` (three runtime deps),
 service --host 0.0.0.0 --port $PORT`. All real integrations stay flag-gated, so a
 default deploy holds no secrets. `GTB_DB_PATH` makes SQLite persistence optional.
 Deployed (unlike Pages), `/brief` is fully live. See `DEPLOY.md`.
+
+## Phase 6.5 — Editable labels + protect list
+
+Inline `#label` tags on a day line force a category (e.g. `#admin`,
+`#recurring-meeting`, `#protect`->presence); `GET /labels` exposes the
+vocabulary and the brief UI adds a per-item re-label dropdown that rewrites the
+tag and re-runs. The protect list is now persistent (`app/presence/values_repo.py`,
+DB-backed) with `DELETE /values/{id}` and an editor panel in the brief UI.

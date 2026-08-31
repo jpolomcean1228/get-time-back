@@ -67,7 +67,7 @@ class LLMEstimator:
                 lever = "defer"
             return Estimate(
                 title=task.title, when=task.when,
-                category=str(data.get("category", "task")),
+                category=(task.forced_category or str(data.get("category", "task"))),
                 active=int(data.get("active", 30)),
                 wait=int(data.get("wait", 0)),
                 travel=int(data.get("travel", 0)),

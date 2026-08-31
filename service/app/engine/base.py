@@ -16,6 +16,7 @@ class Task:
     raw: str
     title: str
     when: str = ""  # optional trailing time, e.g. "5:30"
+    forced_category: str = ""  # set by a #label tag; overrides auto-classification
 
 
 @dataclass

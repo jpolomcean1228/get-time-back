@@ -27,7 +27,7 @@ class RulesEstimator:
         self._profiles = profiles or default_profiles()
 
     def estimate(self, task: Task) -> Estimate:
-        category = self._profiles.classify(task.raw)
+        category = task.forced_category or self._profiles.classify(task.raw)
         p = self._profiles.get(category)
         return Estimate(
             title=task.title, when=task.when, category=category,

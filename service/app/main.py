@@ -37,6 +37,7 @@ from .models import (ActionRef, ActualIn, AvailabilityIn, CalendarEvent,
                      FeedbackIn, FeedbackStatsOut, InboxIn, InboxOut, CommitmentOut)
 from .presence import (DefendingExecutor, PresencePlanner, ProtectedBlocks,
                        Value, load_mock_values)
+from .presence.values_repo import ValuesRepo
 from .store import ActualsStore
 from .agent import run_cycle as agent_run_cycle
 from .agent import FeedbackStore
@@ -110,7 +111,7 @@ actions = ActionStore(
         protected))
 household, timemap, consent = load_mock_household()
 matcher = Matcher(household, timemap, consent)
-values_store = load_mock_values()
+values_store = ValuesRepo(seed=load_mock_values().list())
 planner = PresencePlanner()
 auth = AuthStore()
 households = HouseholdRepo()
@@ -129,13 +130,25 @@ def require_user(user: Optional[User] = Depends(current_user)) -> User:
     return user
 
 _TIME_RE = re.compile(r"\b(\d{1,2}:\d{2})\b")
+_LABEL_RE = re.compile(r"(?:^|\s)#([a-z][a-z0-9-]*)", re.I)
+_LABEL_ALIASES = {"protect": "presence", "recurring": "recurring-meeting",
+                  "deepwork": "deep-work", "focus": "deep-work"}
+_VALID_LABELS = frozenset(p.category for p in default_profiles().list())
 
 
 def _parse(line: str) -> Task:
-    m = _TIME_RE.search(line)
-    when = m.group(1) if m else ""
+    forced = ""
+    m = _LABEL_RE.search(line)
+    if m:
+        tag = m.group(1).lower()
+        cat = _LABEL_ALIASES.get(tag, tag)
+        if cat in _VALID_LABELS:
+            forced = cat
+        line = _LABEL_RE.sub(" ", line, count=1).strip()   # drop the tag from the title
+    mt = _TIME_RE.search(line)
+    when = mt.group(1) if mt else ""
     title = _TIME_RE.sub("", line).strip(" -\t")
-    return Task(raw=line, title=title, when=when)
+    return Task(raw=line, title=title, when=when, forced_category=forced)
 
 
 def _action_model(a) -> ProposedAction:
@@ -464,6 +477,18 @@ def add_value(v: ValueIn):
     values_store.add(Value(id=v.id, label=v.label, minutes=v.minutes,
                            when=v.when, priority=v.priority))
     return list_values()
+
+
+@app.delete("/values/{value_id}")
+def delete_value(value_id: str):
+    """Remove something from the protect list."""
+    return {"ok": values_store.remove(value_id)}
+
+
+@app.get("/labels", response_model=list[str])
+def list_labels():
+    """The category vocabulary — for the re-label dropdown and #tag validation."""
+    return [p.category for p in default_profiles().list()]
 
 
 @app.get("/presence/protected")

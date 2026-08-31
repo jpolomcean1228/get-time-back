@@ -118,6 +118,39 @@
     font-size:14.5px;line-height:1.6;color:var(--ink);}
   .note code{font-family:var(--mono);font-size:13px;background:var(--paper);padding:1px 5px;border-radius:3px;}
   .spin{color:var(--ink-soft);font-size:14px;margin-top:26px;}
+  .pulled-note{font-family:var(--mono);font-size:12px;letter-spacing:.4px;color:var(--presence);margin:16px 0 10px;}
+  .pill-c{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--ink);
+    background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:9px 12px;margin-top:7px;
+    animation:rise var(--t) var(--ease);}
+  @keyframes rise{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+  .pill-c .conf{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--ink-soft);}
+  button.run.alt{background:var(--r-deleg);}
+  button.run.alt:hover{background:var(--presence);}
+  button.run.alt:disabled{opacity:.4;cursor:not-allowed;}
+  /* labeled day + protect editor */
+  .labeltip{color:var(--ink-soft);font-size:12.5px;line-height:1.5;margin-top:9px;}
+  .labeltip code{font-family:var(--mono);font-size:11.5px;background:var(--paper);border:1px solid var(--line);border-radius:3px;padding:1px 5px;}
+  .day-row{display:flex;align-items:center;gap:12px;padding:9px 0;border-top:1px solid var(--line);}
+  .day-row:first-child{border-top:none;}
+  .day-row .t{flex:1;font-size:14.5px;color:var(--ink);}
+  .day-row .t .when{font-family:var(--mono);font-size:11px;color:var(--ink-soft);margin-right:7px;}
+  select.lbl{font-family:var(--mono);font-size:12px;color:var(--ink);background:var(--paper);
+    border:1px solid var(--line-strong);border-radius:5px;padding:5px 7px;cursor:pointer;}
+  select.lbl:hover{border-color:var(--presence);}
+  .prow{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line);}
+  .prow:first-child{border-top:none;}
+  .prow .pl{flex:1;font-size:14.5px;}
+  .prow .pm{font-family:var(--mono);font-size:11.5px;color:var(--presence);}
+  .prow .x{cursor:pointer;border:none;background:none;color:var(--ink-soft);font-size:17px;line-height:1;padding:2px 6px;border-radius:4px;}
+  .prow .x:hover{color:var(--r-elim);background:var(--r-elim-bg);}
+  .addv{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:14px;border-top:1px solid var(--line);padding-top:14px;}
+  .addv input{font-family:var(--sans);font-size:13.5px;color:var(--ink);background:var(--paper);
+    border:1px solid var(--line-strong);border-radius:5px;padding:7px 9px;}
+  .addv input.lab{flex:1;min-width:150px;}
+  .addv input.num{width:78px;}
+  button.addbtn{font-family:var(--sans);font-size:13px;font-weight:600;color:#fff;background:var(--presence);
+    border:none;border-radius:5px;padding:8px 15px;cursor:pointer;}
+  button.addbtn:hover{background:var(--ink);}
 </style>
 </head>
 <body>
@@ -140,6 +173,19 @@
   agent learns about your restraint.</p>
 
   <section class="panel">
+    <div class="ph"><div class="eyebrow">Real source</div><h2>Pull from your inbox</h2></div>
+    <div class="pbody">
+      <textarea id="inbox" spellcheck="false" style="min-height:104px"></textarea>
+      <div class="controls">
+        <button class="run alt" id="extract">Extract commitments</button>
+        <button class="ghost" id="pull">or pull from my inbox →</button>
+        <span class="hint">The agent reads the message and pulls out the tasks buried in it — they drop into your day below.</span>
+      </div>
+      <div id="pulled"></div>
+    </div>
+  </section>
+
+  <section class="panel">
     <div class="ph"><div class="eyebrow">Your day</div><h2>Run the agent</h2></div>
     <div class="pbody">
       <textarea id="tasks" spellcheck="false"></textarea>
@@ -148,9 +194,24 @@
         <button class="run" id="run">Run agent</button>
         <span class="hint" id="run-hint">Set <b>Now</b> to around 3:00&nbsp;PM to watch the school pickup flip to <b>leave&nbsp;now</b>.</span>
       </div>
+      <p class="labeltip">Tag a line to force its label — e.g. <code>Sync with Dana #recurring-meeting</code>, <code>Expense report #admin</code>, or <code>Bedtime #protect</code>. Or run it and change any label below.</p>
     </div>
   </section>
 
+  <section class="panel" id="protect-panel">
+    <div class="ph"><div class="eyebrow">What matters</div><h2>What I protect</h2></div>
+    <div class="pbody">
+      <div id="protect-list"></div>
+      <div class="addv">
+        <input class="lab" id="pv-label" placeholder="Something to protect — e.g. Sunday hike">
+        <input class="num" id="pv-min" type="number" placeholder="min" min="5" step="5" value="45">
+        <input class="num" id="pv-when" placeholder="18:00" value="18:00">
+        <button class="addbtn" id="pv-add">Add</button>
+      </div>
+    </div>
+  </section>
+
+  <div id="day"></div>
   <div id="out"></div>
 
   <section class="panel" id="learned-panel" hidden>
@@ -188,6 +249,7 @@ async function checkHealth(){
   catch(_){ state.live = false; }
   setRibbon();
   $("#run").disabled = !state.live;
+  const ex = document.getElementById("extract"); if(ex) ex.disabled = !state.live;
   if(!state.live) showOffline();
 }
 
@@ -219,8 +281,65 @@ async function run(){
     });
     if(!res.ok) throw new Error("run failed");
     renderBrief(await res.json());
+    renderDay(tasks);
     refreshLearned();
   }catch(e){ state.live=false; setRibbon(); showOffline(); }
+}
+
+let LABELS = [];
+async function loadLabels(){
+  try{ const r = await fetch(API_BASE+"/labels"); if(r.ok) LABELS = await r.json(); }catch(_){}
+}
+async function renderDay(tasks){
+  try{
+    const r = await fetch(API_BASE+"/enrich",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({tasks, include_actions:false, now_min:nowMin()})});
+    if(!r.ok){ $("#day").innerHTML=""; return; }
+    const items = (await r.json()).tasks;
+    const opts = c => LABELS.map(l=>`<option value="${l}"${l===c?" selected":""}>${l}</option>`).join("");
+    $("#day").innerHTML = `<section class="panel"><div class="ph"><div class="eyebrow">Your day</div><h2>Labels</h2></div>
+      <div class="pbody">` + items.map((t,i)=>`<div class="day-row">
+        <span class="t">${t.when?`<span class="when">${escapeHtml(t.when)}</span>`:""}${escapeHtml(t.title)}</span>
+        <select class="lbl" data-i="${i}">${opts(t.category)}</select></div>`).join("") + `</div></section>`;
+    $("#day").querySelectorAll("select.lbl").forEach(sel=>sel.addEventListener("change",onRelabel));
+  }catch(_){ $("#day").innerHTML=""; }
+}
+function onRelabel(e){
+  const i = +e.currentTarget.dataset.i, cat = e.currentTarget.value;
+  const lines = $("#tasks").value.split("\n").map(t=>t.trim()).filter(Boolean);
+  if(i>=lines.length) return;
+  lines[i] = lines[i].replace(/\s*#[a-z0-9-]+/ig,"").trim() + " #" + cat;   // swap the tag
+  $("#tasks").value = lines.join("\n");
+  run();
+}
+
+async function loadValues(){
+  try{
+    const r = await fetch(API_BASE+"/values"); if(!r.ok) return;
+    const vs = await r.json();
+    $("#protect-list").innerHTML = vs.length ? vs.map(v=>`<div class="prow">
+        <span class="pl">${escapeHtml(v.label)}</span>
+        <span class="pm">${v.minutes} min${v.when?` · ${escapeHtml(v.when)}`:""}</span>
+        <button class="x" data-id="${escapeHtml(v.id)}" title="Remove">×</button></div>`).join("")
+      : `<p class="hint">Nothing yet — add something the reclaimed time should go to.</p>`;
+    $("#protect-list").querySelectorAll(".x").forEach(b=>b.addEventListener("click",removeValue));
+  }catch(_){}
+}
+async function addValue(){
+  const label = $("#pv-label").value.trim(); if(!label) return;
+  const minutes = Math.max(5, +$("#pv-min").value||45);
+  const when = $("#pv-when").value.trim();
+  const id = label.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,32) || ("v"+Date.now());
+  try{
+    await fetch(API_BASE+"/values",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({id,label,minutes,when,priority:50})});
+    $("#pv-label").value="";
+    loadValues();
+  }catch(_){}
+}
+async function removeValue(e){
+  try{ await fetch(API_BASE+"/values/"+encodeURIComponent(e.currentTarget.dataset.id),{method:"DELETE"}); }catch(_){}
+  loadValues();
 }
 
 function card(s){
@@ -315,11 +434,45 @@ async function refreshLearned(){
 
 $("#run").addEventListener("click", run);
 $("#rerun2").addEventListener("click", run);
+
+const INBOX_SAMPLE = [
+  "From Maya (soccer): Hey! Can you bring orange slices for Saturday's 9am game?",
+  "From Lincoln Elementary: Permission slips for Friday's field trip are due Thursday — please sign and return them with the $12 fee.",
+  "From Dana (work): Thanks for the update. Could you send me the revised Q3 numbers by Tuesday?",
+].join("\n");
+
+async function pullInbox(text){
+  if(!state.live){ showOffline(); return; }
+  $("#pulled").innerHTML = `<p class="hint" style="margin-top:12px">Reading…</p>`;
+  try{
+    const res = await fetch(API_BASE+"/agent/inbox",{
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ text: text || null }),
+    });
+    if(!res.ok) throw new Error();
+    const d = await res.json();
+    if(!d.commitments.length){
+      $("#pulled").innerHTML = `<p class="hint" style="margin-top:12px">No commitments found in that text.</p>`;
+      return;
+    }
+    const cur = $("#tasks").value.trim();
+    $("#tasks").value = (cur ? cur+"\n" : "") + d.commitments.map(c=>c.task).join("\n");
+    $("#pulled").innerHTML =
+      `<div class="pulled-note">↓ pulled ${d.commitments.length} from ${escapeHtml(d.source)} — added to your day below</div>`
+      + d.commitments.map(c=>`<div class="pill-c"><span class="badge k-handoff">${escapeHtml(c.cue)}</span><span>${escapeHtml(c.task)}</span><span class="conf">${Math.round(c.confidence*100)}%</span></div>`).join("");
+  }catch(_){ state.live=false; setRibbon(); showOffline(); }
+}
+$("#extract").addEventListener("click", ()=>pullInbox($("#inbox").value));
+$("#pull").addEventListener("click", ()=>pullInbox(""));
+$("#pv-add").addEventListener("click", addValue);
 (function init(){
   $("#tasks").value = SAMPLE;
+  $("#inbox").value = INBOX_SAMPLE;
   const d = new Date();
   $("#now").value = String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
   checkHealth();
+  loadLabels();
+  loadValues();
 })();
 </script>
 </body>
