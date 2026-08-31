@@ -569,7 +569,9 @@ function escapeHtml(s){return s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">
 // ---- live-engine wiring (Phase 1) ----------------------------------------
 // Served by uvicorn -> same origin, no CORS. Opened as a file -> try localhost,
 // and if that's blocked or the server's down, fall back to the offline engine.
-const API_BASE = location.protocol === "file:" ? "http://127.0.0.1:8000" : "";
+const API_BASE =
+  location.hostname.endsWith("github.io") ? "https://get-time-back.onrender.com" :
+  location.protocol === "file:"            ? "http://127.0.0.1:8000" : "";
 const state = { live:false };
 
 function setRibbon(){

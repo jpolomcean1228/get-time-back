@@ -163,7 +163,9 @@
 </main>
 
 <script>
-const API_BASE = location.protocol === "file:" ? "http://127.0.0.1:8000" : "";
+const API_BASE =
+  location.hostname.endsWith("github.io") ? "https://get-time-back.onrender.com" :
+  location.protocol === "file:"            ? "http://127.0.0.1:8000" : "";
 const state = { live:false, lastRun:null };
 const SAMPLE = [
   "3:15 pick up the twins from school and drive to soccer",
