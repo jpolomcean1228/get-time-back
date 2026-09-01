@@ -158,3 +158,12 @@ Inline `#label` tags on a day line force a category (e.g. `#admin`,
 vocabulary and the brief UI adds a per-item re-label dropdown that rewrites the
 tag and re-runs. The protect list is now persistent (`app/presence/values_repo.py`,
 DB-backed) with `DELETE /values/{id}` and an editor panel in the brief UI.
+
+## Phase 7 — Weekly Time Back Report
+
+The running ledger, the payoff feature: `GET /report/weekly` totals accepted/
+edited suggestions into minutes reclaimed and presence protected, week over week
+(`app/agent/report.py`, built from the feedback table). A dedicated surface at
+`report.html` (served `/report` and `/report.html`) shows the all-time hours,
+an 8-week bar chart, this-week vs last-week, and a one-line insight. Linked from
+both headers.

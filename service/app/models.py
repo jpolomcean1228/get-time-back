@@ -221,3 +221,22 @@ class CommitmentOut(BaseModel):
 class InboxOut(BaseModel):
     commitments: list[CommitmentOut]
     source: str                  # pasted text | mock inbox | gmail
+
+
+# ---- Weekly time-back ledger ----
+
+class WeekPointOut(BaseModel):
+    week_start: str
+    label: str
+    reclaimed: int
+    protected: int
+    total: int
+    count: int
+
+
+class TimeBackReportOut(BaseModel):
+    weeks: list[WeekPointOut]
+    this_week: WeekPointOut
+    delta_total: int
+    lifetime: dict
+    insight: str

@@ -34,7 +34,8 @@ from .models import (ActionRef, ActualIn, AvailabilityIn, CalendarEvent,
                      MembershipIn, PresenceBlockOut, PresencePlanOut,
                      ProfileIn, ProposedAction, RegisterIn, TokenOut, Totals,
                      ValueIn, AgentBriefOut, SuggestionOut, ValueScoreOut,
-                     FeedbackIn, FeedbackStatsOut, InboxIn, InboxOut, CommitmentOut)
+                     FeedbackIn, FeedbackStatsOut, InboxIn, InboxOut, CommitmentOut,
+                     WeekPointOut, TimeBackReportOut)
 from .presence import (DefendingExecutor, PresencePlanner, ProtectedBlocks,
                        Value, load_mock_values)
 from .presence.values_repo import ValuesRepo
@@ -213,6 +214,16 @@ def brief():
     return {"service": "get-time-back", "docs": "/docs"}
 
 
+@app.get("/report")
+@app.get("/report.html")
+def report_page():
+    """The weekly time-back ledger surface."""
+    _page = Path(__file__).resolve().parents[2] / "report.html"
+    if _page.exists():
+        return FileResponse(_page, headers=_NO_CACHE)
+    return {"service": "get-time-back", "docs": "/docs"}
+
+
 @app.post("/enrich", response_model=EnrichResponse)
 def enrich(req: EnrichRequest, user: Optional[User] = Depends(current_user)):
     lines = [l.strip() for l in req.tasks if l.strip()]
@@ -342,6 +353,14 @@ def agent_inbox(inb: InboxIn):
     return InboxOut(source=label, commitments=[
         CommitmentOut(task=c.task, cue=c.cue, confidence=round(c.confidence, 2), source=c.source)
         for c in commits])
+
+
+@app.get("/report/weekly", response_model=TimeBackReportOut)
+def weekly_report(user: Optional[User] = Depends(current_user)):
+    """The running time-back ledger: minutes reclaimed and presence protected,
+    week over week, from the suggestions you actually accepted."""
+    from .agent.report import build_report
+    return TimeBackReportOut(**build_report(feedback.rows(user.id if user else None)))
 
 
 @app.post("/actuals")

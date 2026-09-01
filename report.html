@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Time back · Get Time Back</title>
+<style>
+  :root{
+    --paper:#FFFFFF; --surface:#FBF5EA; --ink:#41301F; --ink-soft:#7A6850;
+    --line:#E8DDC8; --line-strong:#D3C2A4;
+    --presence:#62753F; --presence-bg:#E9EBD3;
+    --reclaim:#7A5A40; --reclaim-bg:#ECDFCC;
+    --protect:#4F6B4D; --protect-bg:#E3EBD9;
+    --warm:#B05C3A; --warm-bg:#F3E1D2;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --t:.22s; --ease:cubic-bezier(.4,0,.2,1);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;color:var(--ink);font-family:var(--sans);background:var(--paper);-webkit-font-smoothing:antialiased;}
+  main{max-width:860px;margin:0 auto;padding:0 26px 90px;}
+  header{position:sticky;top:0;z-index:5;backdrop-filter:blur(8px);background:rgba(251,245,234,.86);border-bottom:1px solid var(--line);}
+  .hrow{max-width:860px;margin:0 auto;padding:16px 26px;display:flex;align-items:center;gap:14px;}
+  .eyebrow-brand{font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--ink-soft);}
+  .brand h1{font-family:var(--serif);font-size:23px;font-weight:600;letter-spacing:-.4px;margin:2px 0 0;line-height:1.05;}
+  .grow{flex:1;}
+  a.nav{font-family:var(--mono);font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-soft);text-decoration:none;border-bottom:1px solid var(--line-strong);padding-bottom:2px;}
+  a.nav:hover{color:var(--presence);border-color:var(--presence);}
+  .ribbon{font-family:var(--mono);font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:var(--ink-soft);border:1px solid var(--line-strong);border-radius:999px;padding:5px 11px;white-space:nowrap;background:var(--paper);}
+  .ribbon.live{color:var(--presence);border-color:#CBD3B8;background:var(--presence-bg);}
+  .ribbon.offline{color:var(--warm);border-color:#E4C6B4;background:var(--warm-bg);}
+
+  .hero{margin:44px 0 8px;text-align:center;}
+  .hero .k{font-family:var(--mono);font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--ink-soft);}
+  .hero .big{font-family:var(--serif);font-size:72px;font-weight:600;letter-spacing:-2px;line-height:1;margin:10px 0 0;color:var(--ink);}
+  .hero .big .u{font-size:26px;color:var(--ink-soft);letter-spacing:0;}
+  .hero .sub{font-size:15px;color:var(--ink-soft);margin-top:12px;}
+  .hero .sub .split{color:var(--reclaim);} .hero .sub .split.p{color:var(--protect);}
+
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;margin-top:26px;}
+  .ph{padding:18px 22px 0;} .ph .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-soft);}
+  .ph h2{font-family:var(--serif);font-size:20px;font-weight:600;margin:6px 0 0;}
+  .pbody{padding:16px 22px 22px;}
+
+  .chart{display:flex;align-items:flex-end;gap:10px;height:180px;padding-top:10px;}
+  .bar{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:6px;height:100%;}
+  .bar .stack{width:100%;max-width:46px;display:flex;flex-direction:column;justify-content:flex-end;height:100%;border-radius:5px 5px 0 0;overflow:hidden;background:transparent;}
+  .bar .seg{width:100%;transition:height var(--t) var(--ease);}
+  .bar .seg.r{background:var(--reclaim);} .bar .seg.p{background:var(--protect);}
+  .bar.cur .stack{outline:2px solid var(--presence);outline-offset:1px;border-radius:5px;}
+  .bar .val{font-family:var(--mono);font-size:11px;color:var(--ink);}
+  .bar .lab{font-family:var(--mono);font-size:9.5px;letter-spacing:.3px;color:var(--ink-soft);text-align:center;}
+  .legend{display:flex;gap:16px;margin-top:16px;font-family:var(--mono);font-size:11px;color:var(--ink-soft);}
+  .legend .sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:middle;}
+  .legend .sw.r{background:var(--reclaim);} .legend .sw.p{background:var(--protect);}
+
+  .tw{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:6px;overflow:hidden;}
+  .twc{background:var(--surface);padding:18px 20px;}
+  .twc .k{font-family:var(--mono);font-size:10.5px;letter-spacing:1.1px;text-transform:uppercase;color:var(--ink-soft);}
+  .twc .v{font-family:var(--mono);font-size:27px;font-weight:600;margin-top:5px;letter-spacing:-1px;}
+  .twc .d{font-family:var(--mono);font-size:12px;margin-top:4px;}
+  .twc .d.up{color:var(--presence);} .twc .d.down{color:var(--warm);}
+  .insight{margin-top:22px;font-family:var(--serif);font-size:18px;line-height:1.55;color:var(--ink);border-left:3px solid var(--presence);padding-left:16px;}
+  .empty{text-align:center;color:var(--ink-soft);font-size:15px;line-height:1.6;padding:20px 0;}
+  .empty a{color:var(--presence);}
+  .note{background:var(--warm-bg);border:1px solid #E4C6B4;border-radius:6px;padding:18px 20px;margin-top:26px;font-size:14.5px;line-height:1.6;}
+  .note code{font-family:var(--mono);font-size:13px;background:var(--paper);padding:1px 5px;border-radius:3px;}
+  .spin{color:var(--ink-soft);font-size:14px;margin-top:30px;text-align:center;}
+</style>
+</head>
+<body>
+<header>
+  <div class="hrow">
+    <div class="brand"><div class="eyebrow-brand">Get Time Back</div><h1>Time back</h1></div>
+    <div class="grow"></div>
+    <div class="ribbon" id="ribbon">○ checking…</div>
+    <a class="nav" href="brief">brief →</a>
+    <a class="nav" href="./">ledger</a>
+  </div>
+</header>
+
+<main>
+  <div id="out"><p class="spin">Totalling your week…</p></div>
+</main>
+
+<script>
+const API_BASE =
+  location.hostname.endsWith("github.io") ? "https://get-time-back.onrender.com" :
+  location.protocol === "file:"            ? "http://127.0.0.1:8000" : "";
+const $ = s => document.querySelector(s);
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function hrs(m){ return (m/60).toFixed(1); }
+
+function setRibbon(live){
+  const r=$("#ribbon");
+  if(live){ r.className="ribbon live"; r.textContent="\u25CF live"; }
+  else{ r.className="ribbon offline"; r.textContent="\u25CB offline"; }
+}
+function offline(){
+  setRibbon(false);
+  $("#out").innerHTML=`<div class="note">This ledger reads from the running service. Start it and reload:<br><br>
+    <code>cd service &amp;&amp; source .venv/bin/activate &amp;&amp; uvicorn app.main:app --reload</code><br><br>
+    then open <code>http://127.0.0.1:8000/report</code>.</div>`;
+}
+
+function bars(weeks){
+  const max = Math.max(1, ...weeks.map(w=>w.total));
+  const H = 150;
+  return `<div class="chart">` + weeks.map((w,i)=>{
+    const rh = Math.round(w.reclaimed/max*H), ph = Math.round(w.protected/max*H);
+    const cur = i===weeks.length-1 ? " cur":"";
+    return `<div class="bar${cur}">
+      <div class="val">${w.total||""}</div>
+      <div class="stack"><div class="seg p" style="height:${ph}px"></div><div class="seg r" style="height:${rh}px"></div></div>
+      <div class="lab">${esc(w.label)}</div></div>`;
+  }).join("") + `</div>
+  <div class="legend"><span><span class="sw r"></span>reclaimed</span><span><span class="sw p"></span>protected</span></div>`;
+}
+
+function render(rep){
+  setRibbon(true);
+  const life = rep.lifetime, tw = rep.this_week;
+  const d = rep.delta_total;
+  const dtxt = d>0 ? `▲ ${d} min vs last week` : d<0 ? `▼ ${Math.abs(d)} min vs last week` : "even with last week";
+  const dcls = d>0 ? "up" : d<0 ? "down" : "";
+
+  const hero = `<div class="hero">
+    <div class="k">Time reclaimed, all-time</div>
+    <div class="big">${hrs(life.total)}<span class="u"> hrs</span></div>
+    <div class="sub"><span class="split">${life.reclaimed} min freed</span> · <span class="split p">${life.protected} min of presence protected</span></div>
+  </div>`;
+
+  if(life.total===0){
+    $("#out").innerHTML = hero + `<div class="panel"><div class="pbody"><div class="empty">
+      No time on the ledger yet.<br>Open the <a href="brief">brief</a>, run it, and <b>accept</b> a suggestion — reclaimed and protected minutes land here, week over week.</div></div></div>`;
+    return;
+  }
+
+  $("#out").innerHTML = hero
+    + `<section class="panel"><div class="ph"><div class="eyebrow">Week over week</div><h2>The last 8 weeks</h2></div>
+        <div class="pbody">${bars(rep.weeks)}</div></section>`
+    + `<section class="panel"><div class="ph"><div class="eyebrow">This week</div><h2>${esc(tw.label)} →</h2></div>
+        <div class="pbody">
+          <div class="tw">
+            <div class="twc"><div class="k">Reclaimed</div><div class="v">${tw.reclaimed}<span style="font-size:13px"> min</span></div><div class="d ${dcls}">${dtxt}</div></div>
+            <div class="twc"><div class="k">Protected</div><div class="v">${tw.protected}<span style="font-size:13px"> min</span></div></div>
+            <div class="twc"><div class="k">Moves taken</div><div class="v">${tw.count}</div></div>
+          </div>
+          <p class="insight">${esc(rep.insight)}</p>
+        </div></section>`;
+}
+
+async function load(){
+  try{
+    const res = await fetch(API_BASE+"/report/weekly");
+    if(!res.ok) throw new Error();
+    render(await res.json());
+  }catch(_){ offline(); }
+}
+load();
+</script>
+</body>
+</html>

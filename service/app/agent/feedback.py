@@ -133,6 +133,10 @@ class FeedbackStore:
                                    if r["verdict"] == "rejected"),
             preferred_edits=_preferred_edits(rows))
 
+    def rows(self, user_id=None):
+        """All feedback rows (for the weekly report)."""
+        return self._rows(user_id)
+
     def stats(self, user_id=None) -> dict:
         rows = self._rows(user_id)                            # all-time counts
         by_kind = {}
