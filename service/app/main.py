@@ -204,13 +204,25 @@ def plugins():
 # serve the Phase 0 demo UI from the repo root, same origin as the API
 _INDEX = Path(__file__).resolve().parents[2] / "index.html"
 _AGENT_PAGE = Path(__file__).resolve().parents[2] / "agent.html"
+_DAY_PAGE = Path(__file__).resolve().parents[2] / "day.html"
 _NO_CACHE = {"Cache-Control": "no-cache, no-store, must-revalidate"}
 
 
 @app.get("/")
+@app.get("/day")
+@app.get("/day.html")
 def home():
+    """Front door: the calendar-first 'Your Day' view."""
+    if _DAY_PAGE.exists():
+        return FileResponse(_DAY_PAGE, headers=_NO_CACHE)
+    return {"service": "get-time-back", "docs": "/docs"}
+
+
+@app.get("/ledger")
+@app.get("/index.html")
+def ledger():
+    """The original ledger view."""
     if _INDEX.exists():
-        # the demo UI changes often; tell browsers not to serve a stale copy
         return FileResponse(_INDEX, headers=_NO_CACHE)
     return {"service": "get-time-back", "docs": "/docs"}
 
@@ -221,16 +233,6 @@ def brief():
     """The agent brief surface — runs /agent/run and wires the feedback loop."""
     if _AGENT_PAGE.exists():
         return FileResponse(_AGENT_PAGE, headers=_NO_CACHE)
-    return {"service": "get-time-back", "docs": "/docs"}
-
-
-@app.get("/day")
-@app.get("/day.html")
-def day_page():
-    """The calendar-first 'Your Day' surface."""
-    _page = Path(__file__).resolve().parents[2] / "day.html"
-    if _page.exists():
-        return FileResponse(_page, headers=_NO_CACHE)
     return {"service": "get-time-back", "docs": "/docs"}
 
 
