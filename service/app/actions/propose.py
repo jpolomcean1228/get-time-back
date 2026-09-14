@@ -12,8 +12,10 @@ from .base import (ASYNC_UPDATE, BATCH_ERRANDS, BLOCK_TIME, CANCEL,
                    DELAY_START, DRAFT_MESSAGE, Action)
 
 
-def _id(lever: str, title: str) -> str:
-    key = normalize(title) or title.lower().strip()
+def _id(lever: str, title: str, when: str = "", uid: str = "") -> str:
+    # uid (e.g. a specific calendar event) keeps same-titled items distinct;
+    # otherwise fall back to title + time so a 9am and 2pm "Standup" don't collide.
+    key = uid or f"{normalize(title) or title.lower().strip()}@{when}"
     return f"{lever}:{key}"
 
 
@@ -21,7 +23,7 @@ def propose(est: Estimate) -> Action | None:
     """Map a recommendation to a proposed, reversible action (or None)."""
     title = est.title
     when = est.when or "this evening"
-    aid = _id(est.lever, title)
+    aid = _id(est.lever, title, est.when, est.uid)
 
     if est.lever == "protect":
         return Action(id=aid, type=BLOCK_TIME, lever=est.lever,

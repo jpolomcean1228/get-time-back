@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import os
 import re
+import hashlib
 from pathlib import Path
 from typing import Optional
 
@@ -152,6 +153,15 @@ def _parse(line: str) -> Task:
     return Task(raw=line, title=title, when=when, forced_category=forced)
 
 
+def _event_task(ev) -> Task:
+    """A real calendar event -> a Task that carries its actual duration, start
+    time, and a unique id (so same-titled events stay distinct)."""
+    when = ev.start.split("T")[-1][:5] if "T" in (ev.start or "") else ""
+    uid = "cal-" + hashlib.sha1(f"{ev.title}|{ev.start}".encode()).hexdigest()[:10]
+    return Task(raw=ev.title, title=ev.title, when=when, forced_category="meeting",
+                fixed_minutes=int(getattr(ev, "minutes", 0) or 0), uid=uid)
+
+
 def _action_model(a) -> ProposedAction:
     return ProposedAction(id=a.id, type=a.type, lever=a.lever, label=a.label,
                           detail=a.detail, body=a.body, target=a.target,
@@ -214,6 +224,16 @@ def brief():
     return {"service": "get-time-back", "docs": "/docs"}
 
 
+@app.get("/day")
+@app.get("/day.html")
+def day_page():
+    """The calendar-first 'Your Day' surface."""
+    _page = Path(__file__).resolve().parents[2] / "day.html"
+    if _page.exists():
+        return FileResponse(_page, headers=_NO_CACHE)
+    return {"service": "get-time-back", "docs": "/docs"}
+
+
 @app.get("/report")
 @app.get("/report.html")
 def report_page():
@@ -226,9 +246,9 @@ def report_page():
 
 @app.post("/enrich", response_model=EnrichResponse)
 def enrich(req: EnrichRequest, user: Optional[User] = Depends(current_user)):
-    lines = [l.strip() for l in req.tasks if l.strip()]
+    tasks = [_parse(l) for l in req.tasks if l.strip()]
     if req.include_calendar:
-        lines += [ev.title for ev in calendar.today()]
+        tasks += [_event_task(ev) for ev in calendar.today()]
 
     # coordinate over the signed-in user's real household; fall back to the mock
     the_matcher, the_household = matcher, household
@@ -239,8 +259,8 @@ def enrich(req: EnrichRequest, user: Optional[User] = Depends(current_user)):
             the_matcher, the_household = Matcher(h, tm, cn), h
 
     out = []
-    for l in lines:
-        est = engine.estimate(_parse(l))
+    for task in tasks:
+        est = engine.estimate(task)
         act = None
         coord_out = None
         if req.include_actions:

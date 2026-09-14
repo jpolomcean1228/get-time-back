@@ -3,14 +3,22 @@ from __future__ import annotations
 
 from typing import Optional
 
-from pydantic import BaseModel, Field
+import re
+from pydantic import BaseModel, Field, field_validator
 
 
 class EnrichRequest(BaseModel):
-    tasks: list[str] = Field(default_factory=list, description="One line per item, as written")
+    tasks: list[str] = Field(default_factory=list, max_length=200, description="One line per item, as written")
     include_calendar: bool = Field(default=False, description="Fold today's calendar events into the list")
     include_actions: bool = Field(default=False, description="Attach a proposed, reversible action to each item")
-    now_min: Optional[int] = Field(default=None, description="Client-local minutes since midnight, for time-to-event urgency; server time if omitted")
+    now_min: Optional[int] = Field(default=None, ge=0, le=1439, description="Client-local minutes since midnight; server time if omitted")
+
+    @field_validator("tasks")
+    @classmethod
+    def _cap_task_length(cls, v):
+        if any(len(t) > 500 for t in v):
+            raise ValueError("each task line must be 500 characters or fewer")
+        return v
 
 
 class ProposedAction(BaseModel):
@@ -82,11 +90,18 @@ class PresencePlanOut(BaseModel):
 
 
 class ValueIn(BaseModel):
-    id: str
-    label: str
-    minutes: int
-    when: str               # 24h "HH:MM"
-    priority: int = 99
+    id: str = Field(min_length=1, max_length=64)
+    label: str = Field(min_length=1, max_length=200)
+    minutes: int = Field(ge=0, le=1440)
+    when: str = Field(default="", description='24h "HH:MM", or empty')
+    priority: int = Field(default=99, ge=0, le=9999)
+
+    @field_validator("when")
+    @classmethod
+    def _valid_time(cls, v):
+        if v and not re.fullmatch(r"[0-2]?\d:[0-5]\d", v):
+            raise ValueError('when must be "HH:MM" or empty')
+        return v
 
 
 class ProfileIn(BaseModel):
@@ -188,12 +203,19 @@ class AgentBriefOut(BaseModel):
 # ---- Feedback harness (the agent learns your restraint) ----
 
 class FeedbackIn(BaseModel):
-    suggestion_id: str      # the stable signature from a brief suggestion's `id`
-    kind: str               # protect | handoff | reclaim
-    value_minutes: int
+    suggestion_id: str = Field(min_length=1, max_length=128)
+    kind: str = Field(min_length=1, max_length=32)
+    value_minutes: int = Field(ge=0, le=100000)
     interrupt: bool         # was it surfaced as an interrupt?
     verdict: str            # accepted | rejected | edited | ignored
-    edited_to: Optional[str] = None   # for verdict "edited": what you changed it to
+    edited_to: Optional[str] = Field(default=None, max_length=200)
+
+    @field_validator("verdict")
+    @classmethod
+    def _known_verdict(cls, v):
+        if v not in ("accepted", "rejected", "edited", "ignored"):
+            raise ValueError("verdict must be accepted, rejected, edited, or ignored")
+        return v
 
 
 class FeedbackStatsOut(BaseModel):
@@ -208,7 +230,7 @@ class FeedbackStatsOut(BaseModel):
 # ---- Inbox / commitment extraction (a real source) ----
 
 class InboxIn(BaseModel):
-    text: Optional[str] = None   # paste a message/thread; if omitted, pull from the configured inbox
+    text: Optional[str] = Field(default=None, max_length=50000)   # paste a message/thread; omit to pull from the inbox
 
 
 class CommitmentOut(BaseModel):

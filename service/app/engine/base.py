@@ -17,6 +17,8 @@ class Task:
     title: str
     when: str = ""  # optional trailing time, e.g. "5:30"
     forced_category: str = ""  # set by a #label tag; overrides auto-classification
+    fixed_minutes: int = 0     # known duration (e.g. a real calendar event); 0 = estimate it
+    uid: str = ""              # stable unique id for this instance; "" = derive from title
 
 
 @dataclass
@@ -34,6 +36,7 @@ class Estimate:
     confidence: float = 0.0  # 0..1, rises as the engine learns from actuals
     source: str = "rules"    # which estimator produced this
     learn_level: str = ""    # "specific" | "category" | "" — which bucket taught it
+    uid: str = ""            # stable unique id carried from the Task (calendar events)
 
     @property
     def total(self) -> int:

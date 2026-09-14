@@ -167,3 +167,25 @@ edited suggestions into minutes reclaimed and presence protected, week over week
 `report.html` (served `/report` and `/report.html`) shows the all-time hours,
 an 8-week bar chart, this-week vs last-week, and a one-line insight. Linked from
 both headers.
+
+## Review fixes (from code review)
+
+- Calendar events now inform estimates: folded as tasks carrying their real
+  duration + start time (not just titles) — `_event_task` in `main.py`,
+  `fixed_minutes`/`uid` on `Task`/`Estimate`.
+- Action IDs are unique per instance (`uid` for calendar events, else
+  title+time), so moving one "Daily Standup" no longer moves every same-titled
+  event (`actions/propose.py`).
+- Input validation: bounded minutes/priority/now_min, HH:MM time format,
+  verdict allow-list, capped lengths — malformed requests now return 422.
+- Undo confirmed working end-to-end on the live backend (the offline demo has
+  no backend to call, which is why it looked broken there).
+
+## UI — calendar-first "Your Day"
+
+New primary surface at `day.html` (served `/day`, `/day.html`): a clean
+calendar/timeline view with items placed by time (lane layout for overlaps), an
+anytime tray, a compact metric strip, and controls in-view (edit day, include
+calendar, project). Click any item for its true cost + recommended move and
+confirm/undo inline. White base, tan as accent only — addressing the review
+feedback. Linked from every header; promote to front door when ready.

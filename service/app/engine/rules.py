@@ -30,7 +30,8 @@ class RulesEstimator:
         category = task.forced_category or self._profiles.classify(task.raw)
         p = self._profiles.get(category)
         return Estimate(
-            title=task.title, when=task.when, category=category,
-            active=p.active, wait=p.wait, travel=p.travel, frag=p.frag,
+            title=task.title, when=task.when, category=category, uid=task.uid,
+            active=(task.fixed_minutes if task.fixed_minutes > 0 else p.active),
+            wait=p.wait, travel=p.travel, frag=p.frag,
             lever=p.lever, why=p.why, confidence=0.0, source="rules",
         )
